@@ -1,0 +1,69 @@
+name: kenzorf
+
+# ─────────────────────────────────────────────────────────────
+#  KENZORF — orchestration locale / VPS
+#    cp .env.example .env  &&  docker compose up --build
+#    API :8080 (Swagger /swagger)  ·  Back-office :4200  ·  PostgreSQL :5432
+#  (La marketplace Flutter est une app mobile : build via flutter, non containerisée.)
+# ─────────────────────────────────────────────────────────────
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kenzorf-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kenzorf}
+      POSTGRES_USER: ${POSTGRES_USER:-kenzorf}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kenzorf}
+    volumes:
+      - kenzorf-pgdata:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kenzorf} -d ${POSTGRES_DB:-kenzorf}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: kenzorf-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-kenzorf};Username=${POSTGRES_USER:-kenzorf};Password=${POSTGRES_PASSWORD:-kenzorf}
+      Jwt__Issuer: ${Jwt__Issuer:-kenzorf}
+      Jwt__Audience: ${Jwt__Audience:-kenzorf}
+      Jwt__Key: ${Jwt__Key:-please-change-this-to-a-long-random-secret-at-least-32-chars}
+      Jwt__AccessMinutes: ${Jwt__AccessMinutes:-15}
+      Jwt__RefreshDays: ${Jwt__RefreshDays:-14}
+      KPay__BaseUrl: ${KPay__BaseUrl:-}
+      KPay__ApiKey: ${KPay__ApiKey:-}
+      KPay__Secret: ${KPay__Secret:-}
+      KPay__WebhookSecret: ${KPay__WebhookSecret:-}
+    ports:
+      - "${API_PORT:-8080}:8080"
+    volumes:
+      - kenzorf-uploads:/app/wwwroot/uploads
+
+  back-office:
+    build:
+      context: ./back-office
+      dockerfile: Dockerfile
+    container_name: kenzorf-back-office
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${BACKOFFICE_PORT:-4200}:80"
+
+volumes:
+  kenzorf-pgdata:
+  kenzorf-uploads:

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KENZORF — Paiement (simulation dev)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #f5f5f5; display: flex; min-height: 100vh; align-items: center; justify-content: center; margin: 0; }
+    .card { background: #1b1b1b; border: 1px solid #333; border-radius: 16px; padding: 32px; width: 360px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    p { color: #aaa; font-size: 13px; margin: 4px 0; }
+    .amount { font-size: 28px; font-weight: 700; margin: 16px 0; }
+    button { width: 100%; border: 0; border-radius: 10px; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    .pay { background: #16a34a; color: #fff; }
+    .fail { background: #3a1d1d; color: #f87171; }
+    .status { margin-top: 16px; font-size: 13px; }
+    code { background: #000; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Paiement KENZORF (simulation)</h1>
+    <p>Passerelle de développement — aucun paiement réel.</p>
+    <p>Commande : <code id="order"></code></p>
+    <p>Référence : <code id="reference"></code></p>
+    <div class="amount"><span id="amount">0</span> FCFA</div>
+    <button class="pay" onclick="send('Succeeded')">Simuler un paiement réussi</button>
+    <button class="fail" onclick="send('Failed')">Simuler un échec</button>
+    <div class="status" id="status"></div>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const reference = params.get('reference') || '';
+    document.getElementById('order').textContent = params.get('order') || '-';
+    document.getElementById('reference').textContent = reference;
+    document.getElementById('amount').textContent = params.get('amount') || '0';
+
+    async function send(status) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = 'Envoi du webhook…';
+      try {
+        const res = await fetch('/api/payments/webhook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reference, status, transactionId: 'FAKE-' + Date.now() })
+        });
+        statusEl.textContent = res.ok
+          ? 'Webhook traité (' + status + '). Vous pouvez revenir à l\'application.'
+          : 'Erreur webhook: ' + res.status;
+      } catch (e) {
+        statusEl.textContent = 'Erreur réseau: ' + e;
+      }
+    }
+  </script>
+</body>
+</html>

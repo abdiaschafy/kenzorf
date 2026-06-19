@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+**/*.user
+**/.vs/
+**/.vscode/
+**/wwwroot/uploads/*
+!**/wwwroot/uploads/.gitkeep
+Dockerfile
+.dockerignore

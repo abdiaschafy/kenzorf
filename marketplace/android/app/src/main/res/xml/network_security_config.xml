@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Configuration de sécurité réseau KENZORF.
+
+  Le trafic HTTP en clair (cleartext) n'est autorisé QUE vers les hôtes de
+  développement local de l'API .NET :
+    - 10.0.2.2  : machine hôte vue depuis l'émulateur Android
+    - localhost / 127.0.0.1 : exécution locale
+  En production, l'API est servie en HTTPS : le reste du trafic clair reste
+  bloqué par défaut.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>
