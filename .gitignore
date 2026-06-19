@@ -1,0 +1,47 @@
+# ─── .NET ───────────────────────────────────────────────
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+.vs/
+artifacts/
+api/**/appsettings.*.local.json
+
+# ─── Angular / Node (back-office) ───────────────────────
+node_modules/
+back-office/dist/
+back-office/.angular/
+back-office/.nx/
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# ─── Flutter (marketplace) ──────────────────────────────
+marketplace/.dart_tool/
+marketplace/.flutter-plugins
+marketplace/.flutter-plugins-dependencies
+marketplace/build/
+marketplace/.idea/
+marketplace/ios/Pods/
+marketplace/android/.gradle/
+marketplace/android/local.properties
+*.iml
+
+# ─── Secrets & env ──────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+
+# ─── IDE / OS ───────────────────────────────────────────
+.DS_Store
+.vscode/
+.idea/
+Thumbs.db
+
+# ─── Cache pub local (contournement symlink ~/.pub-cache cassé) ───
+.pub-cache-local/
+
+# ─── Uploads runtime ────────────────────────────────────
+api/src/KENZORF.Api/wwwroot/uploads/*
+!api/src/KENZORF.Api/wwwroot/uploads/.gitkeep
