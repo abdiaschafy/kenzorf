@@ -1,0 +1,1 @@
+- [Back-office auth/session](project_backoffice-auth.md) — token storage model, silent-refresh init, logout revocation ordering, nginx security headers

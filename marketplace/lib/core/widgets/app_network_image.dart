@@ -47,12 +47,12 @@ class AppNetworkImage extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      color: AppColors.mist,
+      color: AppColors.sand,
       alignment: Alignment.center,
       child: Icon(
         isError ? Icons.broken_image_outlined : Icons.checkroom_outlined,
-        color: AppColors.line,
-        size: 36,
+        color: AppColors.gold.withValues(alpha: 0.5),
+        size: 34,
       ),
     );
   }

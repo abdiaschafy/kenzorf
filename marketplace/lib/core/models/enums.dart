@@ -48,6 +48,22 @@ enum OrderStatus {
 
   /// Une commande `Pending` reste payable (relance du checkout).
   bool get isPayable => this == OrderStatus.pending;
+
+  /// Statut terminal négatif (annulée / remboursée) — hors timeline normale.
+  bool get isTerminalNegative =>
+      this == OrderStatus.cancelled || this == OrderStatus.refunded;
+
+  /// Étapes nominales d'une commande, dans l'ordre, pour la timeline de suivi.
+  static const List<OrderStatus> timeline = [
+    OrderStatus.pending,
+    OrderStatus.paid,
+    OrderStatus.processing,
+    OrderStatus.shipped,
+    OrderStatus.delivered,
+  ];
+
+  /// Position (0-based) dans la timeline nominale ; -1 si hors timeline.
+  int get timelineIndex => timeline.indexOf(this);
 }
 
 /// État d'une transaction de paiement (KPay).

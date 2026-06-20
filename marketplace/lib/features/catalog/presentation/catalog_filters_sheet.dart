@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/models/enums.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/editorial.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../home/application/home_providers.dart';
 import '../application/catalog_controller.dart';
@@ -56,11 +58,11 @@ class _CatalogFiltersSheetState extends ConsumerState<CatalogFiltersSheet> {
           children: [
             Text(
               l10n.t('catalog.filters'),
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
+            const GoldRule(width: 40),
+            const SizedBox(height: 22),
 
             // Catégorie
             _Label(text: l10n.t('catalog.filter.category')),
@@ -170,12 +172,14 @@ class _Label extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Text(
-        text,
-        style: Theme.of(
-          context,
-        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        text.toUpperCase(),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.6,
+          color: AppColors.taupe,
+        ),
       ),
     );
   }

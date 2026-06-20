@@ -34,9 +34,16 @@ export interface AuthResponse {
   readonly user: UserDto;
 }
 
-/** Session persistée localement. */
+/**
+ * Session courante en mémoire.
+ *
+ * Durcissement sécurité (audit E2) : `accessToken` reste en mémoire et n'est
+ * jamais persisté. Il vaut `null` juste après restauration depuis sessionStorage
+ * (au démarrage), tant que le silent-refresh n'a pas rejoué `/auth/refresh`.
+ * Seuls `refreshToken`, `expiresAt` et `user` sont persistés (sessionStorage).
+ */
 export interface AuthSession {
-  readonly accessToken: string;
+  readonly accessToken: string | null;
   readonly refreshToken: string;
   readonly expiresAt: string;
   readonly user: UserDto;

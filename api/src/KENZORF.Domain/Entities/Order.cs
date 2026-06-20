@@ -31,6 +31,12 @@ public class Order : AuditableEntity
 
     public string? CustomerNote { get; set; }
 
+    /// <summary>
+    /// Annotation interne back-office (non visible du client). Sert notamment à signaler une commande
+    /// nécessitant un traitement manuel — ex. stock insuffisant détecté au moment du paiement (rupture).
+    /// </summary>
+    public string? AdminNote { get; set; }
+
     public DateTimeOffset? PaidAt { get; set; }
     public DateTimeOffset? ShippedAt { get; set; }
     public DateTimeOffset? DeliveredAt { get; set; }

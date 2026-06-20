@@ -9,9 +9,10 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_localizer.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/auth_header.dart';
 import '../../../core/widgets/primary_button.dart';
 
-/// Écran de connexion (email + mot de passe).
+/// Écran de connexion (email + mot de passe), en-tête éditorial charbon.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -63,81 +64,81 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final validators = Validators(l10n);
 
     return Scaffold(
-      appBar: AppBar(automaticallyImplyLeading: false),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  l10n.t('app.name'),
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  l10n.t('auth.login.subtitle'),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyLarge?.copyWith(color: AppColors.stone),
-                ),
-                const SizedBox(height: 32),
-                AppTextField(
-                  label: l10n.t('auth.field.email'),
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  validator: validators.email(),
-                  autofillHints: const [AutofillHints.email],
-                  prefixIcon: const Icon(Icons.mail_outline),
-                ),
-                const SizedBox(height: 16),
-                AppTextField(
-                  label: l10n.t('auth.field.password'),
-                  controller: _passwordController,
-                  obscureText: _obscure,
-                  textInputAction: TextInputAction.done,
-                  validator: validators.password(),
-                  onFieldSubmitted: (_) => _submit(),
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscure ? Icons.visibility_off : Icons.visibility,
-                    ),
-                    onPressed: () => setState(() => _obscure = !_obscure),
-                  ),
-                ),
-                const SizedBox(height: 28),
-                PrimaryButton(
-                  label: l10n.t('auth.login.submit'),
-                  loading: _submitting,
-                  onPressed: _submit,
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+      backgroundColor: AppColors.cream,
+      body: Column(
+        children: [
+          AuthHeader(
+            title: l10n.t('auth.login.title'),
+            subtitle: l10n.t('auth.login.subtitle'),
+            showBack: false,
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.xl,
+                AppSpacing.lg,
+                AppSpacing.lg,
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      l10n.t('auth.login.noAccount'),
-                      style: Theme.of(context).textTheme.bodyMedium,
+                    AppTextField(
+                      label: l10n.t('auth.field.email'),
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      validator: validators.email(),
+                      autofillHints: const [AutofillHints.email],
+                      prefixIcon: const Icon(Icons.mail_outline),
                     ),
-                    TextButton(
-                      onPressed: _submitting
-                          ? null
-                          : () => context.push(AppRoutes.register),
-                      child: Text(l10n.t('auth.login.toRegister')),
+                    const SizedBox(height: AppSpacing.md),
+                    AppTextField(
+                      label: l10n.t('auth.field.password'),
+                      controller: _passwordController,
+                      obscureText: _obscure,
+                      textInputAction: TextInputAction.done,
+                      validator: validators.password(),
+                      onFieldSubmitted: (_) => _submit(),
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscure ? Icons.visibility_off : Icons.visibility,
+                        ),
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    PrimaryButton(
+                      label: l10n.t('auth.login.submit'),
+                      loading: _submitting,
+                      onPressed: _submit,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          l10n.t('auth.login.noAccount'),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.taupe),
+                        ),
+                        TextButton(
+                          onPressed: _submitting
+                              ? null
+                              : () => context.push(AppRoutes.register),
+                          child: Text(l10n.t('auth.login.toRegister')),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

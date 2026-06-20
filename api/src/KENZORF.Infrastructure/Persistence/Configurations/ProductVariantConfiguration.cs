@@ -23,6 +23,10 @@ public sealed class ProductVariantConfiguration : IEntityTypeConfiguration<Produ
         builder.HasIndex(v => v.ProductId);
         builder.HasIndex(v => v.IsActive);
 
+        // Garde-fou base : le stock ne peut jamais devenir négatif (le décrément atomique conditionnel
+        // s'appuie sur cette invariant — voir PaymentService.HandleWebhookAsync).
+        builder.ToTable(t => t.HasCheckConstraint("CK_product_variants_StockQuantity", "\"StockQuantity\" >= 0"));
+
         // Propriétés calculées non persistées.
         builder.Ignore(v => v.Label);
         builder.Ignore(v => v.InStock);

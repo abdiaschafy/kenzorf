@@ -10,14 +10,16 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/color_utils.dart';
 import '../../../core/utils/error_localizer.dart';
 import '../../../core/widgets/app_network_image.dart';
+import '../../../core/widgets/editorial.dart';
 import '../../../core/widgets/price_text.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../cart/application/cart_controller.dart';
 import '../application/product_providers.dart';
 
-/// Fiche produit : galerie d'images, infos, sélection de variante
-/// (taille/couleur) et ajout au panier selon le stock.
+/// Fiche produit éditoriale : galerie plein cadre (transition héro), infos,
+/// sélecteurs de variante (pastilles taille/couleur), barre « Ajouter au
+/// panier » collante et premium, matière / entretien.
 class ProductDetailScreen extends ConsumerWidget {
   const ProductDetailScreen({super.key, required this.slug});
 
@@ -29,12 +31,20 @@ class ProductDetailScreen extends ConsumerWidget {
     final detail = ref.watch(productDetailProvider(slug));
 
     return Scaffold(
-      appBar: AppBar(),
       body: detail.when(
         loading: () => const LoadingView(),
-        error: (e, _) => ErrorView(
-          message: l10n.describeError(e),
-          onRetry: () => ref.invalidate(productDetailProvider(slug)),
+        error: (e, _) => SafeArea(
+          child: Column(
+            children: [
+              const _FloatingBackBar(),
+              Expanded(
+                child: ErrorView(
+                  message: l10n.describeError(e),
+                  onRetry: () => ref.invalidate(productDetailProvider(slug)),
+                ),
+              ),
+            ],
+          ),
         ),
         data: (product) => _ProductBody(product: product),
       ),
@@ -61,13 +71,11 @@ class _ProductBodyState extends ConsumerState<_ProductBody> {
   @override
   void initState() {
     super.initState();
-    // Présélection si une seule taille / couleur.
     if (_product.sizes.length == 1) _selectedSize = _product.sizes.first;
     if (_product.colors.length == 1) _selectedColor = _product.colors.first;
   }
 
   ProductVariant? get _selectedVariant {
-    // Si l'attribut n'existe pas pour le produit, on l'ignore dans le matching.
     final size = _product.sizes.isEmpty ? null : _selectedSize;
     final color = _product.colors.isEmpty ? null : _selectedColor;
     if ((_product.sizes.isNotEmpty && size == null) ||
@@ -77,43 +85,41 @@ class _ProductBodyState extends ConsumerState<_ProductBody> {
     return _product.variantFor(size: size, color: color);
   }
 
-  bool _sizeHasStock(String size) {
-    return _product.variants.any(
-      (v) =>
-          v.size == size &&
-          (_selectedColor == null || v.color == _selectedColor) &&
-          v.inStock,
-    );
-  }
+  bool _sizeHasStock(String size) => _product.variants.any(
+    (v) =>
+        v.size == size &&
+        (_selectedColor == null || v.color == _selectedColor) &&
+        v.inStock,
+  );
 
-  bool _colorHasStock(String color) {
-    return _product.variants.any(
-      (v) =>
-          v.color == color &&
-          (_selectedSize == null || v.size == _selectedSize) &&
-          v.inStock,
-    );
+  bool _colorHasStock(String color) => _product.variants.any(
+    (v) =>
+        v.color == color &&
+        (_selectedSize == null || v.size == _selectedSize) &&
+        v.inStock,
+  );
+
+  void _toast(String message, {SnackBarAction? action}) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message), action: action));
   }
 
   Future<void> _addToCart() async {
     final l10n = context.l10n;
     final auth = ref.read(authControllerProvider);
     if (!auth.isAuthenticated) {
-      context.go(AppRoutes.login);
+      context.push(AppRoutes.login);
       return;
     }
 
     final variant = _selectedVariant;
     if (variant == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.t('product.selectVariant'))));
+      _toast(l10n.t('product.selectVariant'));
       return;
     }
     if (!variant.inStock) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.t('product.variantOutOfStock'))),
-      );
+      _toast(l10n.t('product.variantOutOfStock'));
       return;
     }
 
@@ -123,22 +129,18 @@ class _ProductBodyState extends ConsumerState<_ProductBody> {
           .read(cartControllerProvider.notifier)
           .addItem(productVariantId: variant.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.t('product.added')),
-            action: SnackBarAction(
-              label: l10n.t('nav.cart'),
-              onPressed: () => context.go(AppRoutes.cart),
-            ),
+        _toast(
+          l10n.t('product.added'),
+          action: SnackBarAction(
+            label: l10n.t('product.viewCart'),
+            onPressed: () => context.go(AppRoutes.cart),
           ),
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.describeError(e))));
-      }
+      // Le contrôleur ne corrompt jamais le panier : on affiche un toast
+      // localisé, jamais d'écran d'erreur.
+      if (mounted) _toast(l10n.describeError(e));
     } finally {
       if (mounted) setState(() => _adding = false);
     }
@@ -147,76 +149,90 @@ class _ProductBodyState extends ConsumerState<_ProductBody> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final theme = Theme.of(context);
     final variant = _selectedVariant;
     final images = _product.images;
     final canAdd = variant != null && variant.inStock;
-
     final displayPrice = variant?.price ?? _product.basePrice;
 
-    return Column(
+    return Stack(
       children: [
-        Expanded(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              // Galerie
-              _Gallery(
+        CustomScrollView(
+          slivers: [
+            // Galerie plein cadre, transition héro depuis la grille.
+            SliverToBoxAdapter(
+              child: _Gallery(
+                heroId: _product.id,
                 images: images,
                 index: _imageIndex,
                 fallback: _product.primaryImageUrl,
                 onChanged: (i) => setState(() => _imageIndex = i),
               ),
-              Padding(
-                padding: const EdgeInsets.all(20),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  140,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _product.name,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                      l10n.t(_product.gender.l10nKey).toUpperCase(),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: AppColors.gold,
+                        letterSpacing: 2.4,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 8),
+                    Text(
+                      _product.name,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        height: 1.08,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     PriceText(
                       amount: displayPrice,
                       compareAt: _product.compareAtPrice,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 10),
                     _StockHint(variant: variant, product: _product),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: AppSpacing.lg),
 
-                    // Tailles
                     if (_product.sizes.isNotEmpty) ...[
                       _AttributeLabel(text: l10n.t('product.size')),
                       Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                        spacing: 10,
+                        runSpacing: 10,
                         children: [
                           for (final size in _product.sizes)
-                            ChoiceChip(
-                              label: Text(size),
+                            _SizePill(
+                              label: size,
                               selected: _selectedSize == size,
-                              onSelected: _sizeHasStock(size)
-                                  ? (_) => setState(() => _selectedSize = size)
-                                  : null,
+                              enabled: _sizeHasStock(size),
+                              onTap: () => setState(() => _selectedSize = size),
                             ),
                         ],
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: AppSpacing.lg),
                     ],
 
-                    // Couleurs
                     if (_product.colors.isNotEmpty) ...[
                       _AttributeLabel(text: l10n.t('product.color')),
                       Wrap(
-                        spacing: 10,
-                        runSpacing: 8,
+                        spacing: 12,
+                        runSpacing: 10,
                         children: [
                           for (final color in _product.colors)
-                            _ColorOption(
+                            _ColorPill(
                               color: color,
                               hex: _hexFor(color),
                               selected: _selectedColor == color,
@@ -226,44 +242,65 @@ class _ProductBodyState extends ConsumerState<_ProductBody> {
                             ),
                         ],
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: AppSpacing.lg),
                     ],
 
-                    const Divider(height: 32),
+                    const GoldRule(width: 36),
+                    const SizedBox(height: AppSpacing.lg),
 
-                    // Description
                     _Section(
                       title: l10n.t('product.description'),
                       child: Text(
                         _product.description,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          height: 1.6,
+                          color: AppColors.ink,
+                        ),
                       ),
                     ),
                     if (_product.material != null &&
                         _product.material!.isNotEmpty)
                       _Section(
                         title: l10n.t('product.material'),
-                        child: Text(_product.material!),
+                        child: Text(
+                          _product.material!,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            height: 1.6,
+                          ),
+                        ),
                       ),
                     if (_product.careInstructions != null &&
                         _product.careInstructions!.isNotEmpty)
                       _Section(
                         title: l10n.t('product.care'),
-                        child: Text(_product.careInstructions!),
+                        child: Text(
+                          _product.careInstructions!,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            height: 1.6,
+                          ),
+                        ),
                       ),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        _BottomBar(
-          enabled: canAdd,
-          loading: _adding,
-          label: canAdd
-              ? l10n.t('product.addToCart')
-              : l10n.t('product.outOfStock'),
-          onPressed: _addToCart,
+        const _FloatingBackBar(),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: _StickyAddBar(
+            enabled: canAdd,
+            loading: _adding,
+            price: displayPrice,
+            compareAt: _product.compareAtPrice,
+            label: canAdd
+                ? l10n.t('product.addToCart')
+                : (variant == null
+                      ? l10n.t('product.selectVariant')
+                      : l10n.t('product.outOfStock')),
+            onPressed: _addToCart,
+          ),
         ),
       ],
     );
@@ -277,14 +314,42 @@ class _ProductBodyState extends ConsumerState<_ProductBody> {
   }
 }
 
+/// Bouton retour flottant translucide posé sur la galerie.
+class _FloatingBackBar extends StatelessWidget {
+  const _FloatingBackBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            color: AppColors.charcoal.withValues(alpha: 0.55),
+            shape: const CircleBorder(),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: AppColors.cream),
+              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+              onPressed: () => context.pop(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _Gallery extends StatelessWidget {
   const _Gallery({
+    required this.heroId,
     required this.images,
     required this.index,
     required this.onChanged,
     this.fallback,
   });
 
+  final String heroId;
   final List<ProductImage> images;
   final int index;
   final ValueChanged<int> onChanged;
@@ -297,35 +362,41 @@ class _Gallery extends StatelessWidget {
         : (fallback != null ? [fallback!] : <String>[]);
 
     return AspectRatio(
-      aspectRatio: 1,
+      aspectRatio: 0.84,
       child: Stack(
         children: [
           PageView.builder(
             itemCount: urls.isEmpty ? 1 : urls.length,
             onPageChanged: onChanged,
-            itemBuilder: (context, i) => AppNetworkImage(
-              url: urls.isEmpty ? null : urls[i],
-              fit: BoxFit.cover,
-            ),
+            itemBuilder: (context, i) {
+              final image = AppNetworkImage(
+                url: urls.isEmpty ? null : urls[i],
+              );
+              // Le 1er visuel porte le héros partagé (cohérence avec la grille).
+              return i == 0
+                  ? Hero(tag: 'catalog-$heroId', child: image)
+                  : image;
+            },
           ),
           if (urls.length > 1)
             Positioned(
-              bottom: 12,
+              bottom: 14,
               left: 0,
               right: 0,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   for (var i = 0; i < urls.length; i++)
-                    Container(
-                      width: 8,
-                      height: 8,
+                    AnimatedContainer(
+                      duration: AppMotion.micro,
+                      width: i == index ? 22 : 7,
+                      height: 7,
                       margin: const EdgeInsets.symmetric(horizontal: 3),
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(4),
                         color: i == index
-                            ? AppColors.ink
-                            : AppColors.ink.withValues(alpha: 0.3),
+                            ? AppColors.gold
+                            : AppColors.cream.withValues(alpha: 0.6),
                       ),
                     ),
                 ],
@@ -346,14 +417,13 @@ class _StockHint extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     if (variant == null) {
-      // Aucune variante sélectionnée : indication globale.
       if (!product.inStock) {
-        return _chip(l10n.t('product.outOfStock'), AppColors.danger);
+        return _chip(l10n.t('product.outOfStock'), AppColors.terracotta);
       }
       return const SizedBox.shrink();
     }
     if (!variant!.inStock) {
-      return _chip(l10n.t('product.outOfStock'), AppColors.danger);
+      return _chip(l10n.t('product.outOfStock'), AppColors.terracotta);
     }
     if (variant!.isLowStock) {
       return _chip(
@@ -368,8 +438,8 @@ class _StockHint extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.circle, size: 9, color: color),
-        const SizedBox(width: 6),
+        Icon(Icons.circle, size: 8, color: color),
+        const SizedBox(width: 7),
         Text(
           text,
           style: TextStyle(color: color, fontWeight: FontWeight.w600),
@@ -386,19 +456,75 @@ class _AttributeLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Text(
-        text,
-        style: Theme.of(
-          context,
-        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        text.toUpperCase(),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.6,
+          color: AppColors.taupe,
+        ),
       ),
     );
   }
 }
 
-class _ColorOption extends StatelessWidget {
-  const _ColorOption({
+/// Pastille de taille (rectangle arrondi, sélection charbon, désactivée barrée).
+class _SizePill extends StatelessWidget {
+  const _SizePill({
+    required this.label,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      selected: selected,
+      label: label,
+      child: Opacity(
+        opacity: enabled ? 1 : 0.4,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          child: Container(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 44),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: selected ? AppColors.charcoal : AppColors.paper,
+              border: Border.all(
+                color: selected ? AppColors.charcoal : AppColors.line,
+                width: selected ? 1.5 : 1,
+              ),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppColors.cream : AppColors.ink,
+                fontWeight: FontWeight.w600,
+                decoration: enabled ? null : TextDecoration.lineThrough,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pastille de couleur : swatch + libellé, anneau doré si sélectionnée.
+class _ColorPill extends StatelessWidget {
+  const _ColorPill({
     required this.color,
     required this.hex,
     required this.selected,
@@ -415,37 +541,48 @@ class _ColorOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final swatch = colorFromHex(hex);
-    return Opacity(
-      opacity: enabled ? 1 : 0.35,
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(30),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(
-              color: selected ? AppColors.ink : AppColors.line,
-              width: selected ? 2 : 1,
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      selected: selected,
+      label: color,
+      child: Opacity(
+        opacity: enabled ? 1 : 0.4,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 44),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.paper,
+              border: Border.all(
+                color: selected ? AppColors.gold : AppColors.line,
+                width: selected ? 1.8 : 1,
+              ),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (swatch != null) ...[
-                Container(
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: swatch,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.line),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (swatch != null) ...[
+                  Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: swatch,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.line),
+                    ),
                   ),
+                  const SizedBox(width: 9),
+                ],
+                Text(
+                  color,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
-                const SizedBox(width: 8),
               ],
-              Text(color),
-            ],
+            ),
           ),
         ),
       ),
@@ -461,17 +598,19 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title,
-            style: Theme.of(
-              context,
-            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            title.toUpperCase(),
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.6,
+              color: AppColors.taupe,
+            ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           child,
         ],
       ),
@@ -479,34 +618,82 @@ class _Section extends StatelessWidget {
   }
 }
 
-class _BottomBar extends StatelessWidget {
-  const _BottomBar({
+/// Barre collante premium « Ajouter au panier » : prix à gauche, CTA à droite.
+class _StickyAddBar extends StatelessWidget {
+  const _StickyAddBar({
     required this.enabled,
     required this.loading,
     required this.label,
+    required this.price,
     required this.onPressed,
+    this.compareAt,
   });
 
   final bool enabled;
   final bool loading;
   final String label;
+  final int price;
+  final int? compareAt;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          border: Border(top: BorderSide(color: AppColors.line)),
-        ),
-        child: PrimaryButton(
-          label: label,
-          loading: loading,
-          icon: enabled ? Icons.shopping_bag_outlined : null,
-          onPressed: enabled ? onPressed : null,
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.cream,
+        border: Border(top: BorderSide(color: AppColors.line)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 16,
+            offset: Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.md,
+          ),
+          child: Row(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    context.l10n.t('cart.total').toUpperCase(),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.taupe,
+                      letterSpacing: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  PriceText(
+                    amount: price,
+                    compareAt: compareAt,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: PrimaryButton(
+                  label: label,
+                  loading: loading,
+                  variant: ButtonVariant.gold,
+                  icon: enabled ? Icons.shopping_bag_outlined : null,
+                  onPressed: enabled ? onPressed : null,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

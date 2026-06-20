@@ -19,11 +19,13 @@ namespace KENZORF.Infrastructure.Auth;
 public sealed class TokenService : ITokenService
 {
     private readonly AppDbContext _db;
+    private readonly IIdentityService _identity;
     private readonly JwtOptions _options;
 
-    public TokenService(AppDbContext db, IOptions<JwtOptions> options)
+    public TokenService(AppDbContext db, IIdentityService identity, IOptions<JwtOptions> options)
     {
         _db = db;
+        _identity = identity;
         _options = options.Value;
     }
 
@@ -38,12 +40,33 @@ public sealed class TokenService : ITokenService
     public async Task<(TokenPair Tokens, Guid UserId, string Email, string Role)?> RotateAsync(string refreshToken,
         CancellationToken cancellationToken = default)
     {
+        // Nettoyage opportuniste des jetons expirés (best-effort, ne bloque pas la rotation).
+        await PurgeExpiredAsync(cancellationToken);
+
         var hash = Hash(refreshToken);
 
         var stored = await _db.RefreshTokens
             .FirstOrDefaultAsync(t => t.TokenHash == hash, cancellationToken);
 
-        if (stored is null || !stored.IsActive)
+        if (stored is null)
+        {
+            // Jeton inconnu (jamais émis ou déjà purgé) : refus simple.
+            return null;
+        }
+
+        // Détection de réutilisation : un jeton présenté alors qu'il est DÉJÀ révoqué signale un vol/replay
+        // (le client légitime n'a en main que le dernier jeton émis). On invalide toute la famille issue de
+        // ce jeton puis tous les jetons actifs restants du compte, et on refuse la rotation (fail-closed).
+        if (stored.RevokedAt is not null)
+        {
+            await RevokeTokenFamilyAsync(stored, cancellationToken);
+            await RevokeAllActiveForUserAsync(stored.UserId, cancellationToken);
+            await _db.SaveChangesAsync(cancellationToken);
+            return null;
+        }
+
+        // Jeton trouvé mais expiré : refus (il sera purgé au prochain passage).
+        if (!stored.IsActive)
         {
             return null;
         }
@@ -54,15 +77,9 @@ public sealed class TokenService : ITokenService
             return null;
         }
 
-        var roles = await _db.UserRoles.Where(ur => ur.UserId == user.Id).ToListAsync(cancellationToken);
-        var roleIds = roles.Select(r => r.RoleId).ToList();
-        var roleNames = await _db.Roles
-            .Where(r => roleIds.Contains(r.Id))
-            .Select(r => r.Name!)
-            .ToListAsync(cancellationToken);
-        var role = roleNames.Contains(Application.Common.AppRoles.Admin)
-            ? Application.Common.AppRoles.Admin
-            : Application.Common.AppRoles.Customer;
+        // Résolution du rôle déléguée à Identity (UserManager.GetRolesAsync), source unique de vérité.
+        var role = await _identity.GetRoleAsync(user.Id, cancellationToken)
+            ?? Application.Common.AppRoles.Customer;
 
         var email = user.Email ?? string.Empty;
 
@@ -83,6 +100,60 @@ public sealed class TokenService : ITokenService
         await _db.SaveChangesAsync(cancellationToken);
 
         return (new TokenPair(accessToken, newRefresh, expiresAt), user.Id, email, role);
+    }
+
+    /// <summary>Révoque la chaîne de jetons issue de <paramref name="compromised"/> (suivi de ReplacedByTokenHash).</summary>
+    private async Task RevokeTokenFamilyAsync(RefreshToken compromised, CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var current = compromised;
+        var guard = 0;
+
+        while (current is not null && guard++ < 256)
+        {
+            if (current.RevokedAt is null)
+            {
+                current.RevokedAt = now;
+            }
+
+            var nextHash = current.ReplacedByTokenHash;
+            if (string.IsNullOrEmpty(nextHash))
+            {
+                break;
+            }
+
+            current = await _db.RefreshTokens
+                .FirstOrDefaultAsync(t => t.TokenHash == nextHash, cancellationToken);
+        }
+    }
+
+    /// <summary>Révoque tous les jetons encore actifs du compte (confinement après détection de vol).</summary>
+    private async Task RevokeAllActiveForUserAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var active = await _db.RefreshTokens
+            .Where(t => t.UserId == userId && t.RevokedAt == null)
+            .ToListAsync(cancellationToken);
+
+        foreach (var token in active)
+        {
+            token.RevokedAt = now;
+        }
+    }
+
+    /// <summary>Supprime les jetons expirés (révoqués ou non) pour borner la table.</summary>
+    private async Task PurgeExpiredAsync(CancellationToken cancellationToken)
+    {
+        var threshold = DateTimeOffset.UtcNow;
+        var expired = await _db.RefreshTokens
+            .Where(t => t.ExpiresAt <= threshold)
+            .ToListAsync(cancellationToken);
+
+        if (expired.Count > 0)
+        {
+            _db.RefreshTokens.RemoveRange(expired);
+            await _db.SaveChangesAsync(cancellationToken);
+        }
     }
 
     public async Task RevokeAsync(string refreshToken, CancellationToken cancellationToken = default)

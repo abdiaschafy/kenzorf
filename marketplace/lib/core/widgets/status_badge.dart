@@ -18,12 +18,12 @@ class OrderStatusBadge extends StatelessWidget {
       case OrderStatus.processing:
         return AppColors.accentDark;
       case OrderStatus.shipped:
-        return const Color(0xFF1565C0);
+        return const Color(0xFF3A6B8C);
       case OrderStatus.delivered:
         return AppColors.success;
       case OrderStatus.cancelled:
       case OrderStatus.refunded:
-        return AppColors.danger;
+        return AppColors.terracotta;
     }
   }
 

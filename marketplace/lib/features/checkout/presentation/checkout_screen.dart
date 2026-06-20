@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/models/address.dart';
+import '../../../core/models/cart.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_theme.dart';
@@ -17,8 +18,8 @@ import '../../cart/application/cart_controller.dart';
 import '../../profile/application/addresses_controller.dart';
 import '../application/checkout_controller.dart';
 
-/// Checkout : choix de l'adresse (existante ou nouvelle), du moyen de paiement,
-/// récapitulatif, puis création de la commande et redirection KPay.
+/// Checkout : adresse (existante ou nouvelle), moyen de paiement,
+/// récapitulatif, création de commande + redirection KPay.
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
 
@@ -33,7 +34,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   PaymentMethod _paymentMethod = PaymentMethod.orangeMoney;
   final _note = TextEditingController();
 
-  // Champs adresse inline (mode nouvelle adresse).
   final _fullName = TextEditingController();
   final _phone = TextEditingController();
   final _line1 = TextEditingController();
@@ -67,7 +67,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       if (match.isNotEmpty) return AddressRequest.fromAddress(match.first);
       return null;
     }
-    // Nouvelle adresse depuis le formulaire inline.
     return AddressRequest(
       fullName: _fullName.text.trim(),
       phoneNumber: _phone.text.trim(),
@@ -82,7 +81,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   Future<void> _placeOrder(List<Address> addresses) async {
     final l10n = context.l10n;
-    // Valider le formulaire seulement en mode nouvelle adresse.
     if (_selectedAddressId == null && !_formKey.currentState!.validate()) {
       return;
     }
@@ -109,8 +107,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       return;
     }
 
-    // Rafraîchit le panier (vidé côté serveur après création) puis ouvre la
-    // page de paiement KPay.
     ref.read(cartControllerProvider.notifier).refresh();
     context.push(AppRoutes.payment, extra: order);
   }
@@ -143,7 +139,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             orElse: () => <Address>[],
           );
 
-          // Présélection de l'adresse par défaut au premier rendu.
           if (_selectedAddressId == null && addressList.isNotEmpty) {
             final defaults = addressList.where((a) => a.isDefault);
             _selectedAddressId = defaults.isNotEmpty
@@ -151,61 +146,65 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 : addressList.first.id;
           }
 
-          return Stack(
+          return Column(
             children: [
-              Form(
-                key: _formKey,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
-                  children: [
-                    _AddressSection(
-                      addresses: addressList,
-                      addressesState: addresses,
-                      selectedId: _selectedAddressId,
-                      onSelect: (id) => setState(() => _selectedAddressId = id),
-                      onNew: () => setState(() => _selectedAddressId = null),
-                      newAddressForm: _NewAddressForm(
-                        fullName: _fullName,
-                        phone: _phone,
-                        line1: _line1,
-                        line2: _line2,
-                        city: _city,
-                        region: _region,
-                        country: _country,
-                        landmark: _landmark,
-                        validators: Validators(l10n),
+              Expanded(
+                child: Form(
+                  key: _formKey,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.md,
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                    ),
+                    children: [
+                      _SectionTitle(l10n.t('checkout.address.title')),
+                      _AddressSection(
+                        addresses: addressList,
+                        loading: addresses.isLoading,
+                        selectedId: _selectedAddressId,
+                        onSelect: (id) =>
+                            setState(() => _selectedAddressId = id),
+                        onNew: () => setState(() => _selectedAddressId = null),
+                        newAddressForm: _NewAddressForm(
+                          fullName: _fullName,
+                          phone: _phone,
+                          line1: _line1,
+                          line2: _line2,
+                          city: _city,
+                          region: _region,
+                          country: _country,
+                          landmark: _landmark,
+                          validators: Validators(l10n),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    _PaymentSection(
-                      selected: _paymentMethod,
-                      onChanged: (m) => setState(() => _paymentMethod = m),
-                    ),
-                    const SizedBox(height: 24),
-                    _NoteField(controller: _note),
-                    const SizedBox(height: 24),
-                    _SummarySection(cart: cartData),
-                  ],
-                ),
-              ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: SafeArea(
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      border: Border(top: BorderSide(color: AppColors.line)),
-                    ),
-                    child: PrimaryButton(
-                      label: l10n.t('checkout.place'),
-                      icon: Icons.lock_outline,
-                      loading: isPlacing,
-                      onPressed: () => _placeOrder(addressList),
-                    ),
+                      const SizedBox(height: AppSpacing.xl),
+                      _SectionTitle(l10n.t('checkout.payment.title')),
+                      _PaymentSection(
+                        selected: _paymentMethod,
+                        onChanged: (m) => setState(() => _paymentMethod = m),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      _SectionTitle(l10n.t('checkout.note.label')),
+                      AppTextField(
+                        label: '',
+                        controller: _note,
+                        hintText: l10n.t('checkout.note.hint'),
+                        maxLines: 3,
+                        textInputAction: TextInputAction.newline,
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      _SectionTitle(l10n.t('checkout.summary.title')),
+                      _Summary(cart: cartData),
+                    ],
                   ),
                 ),
+              ),
+              _PayBar(
+                total: cartData.subtotal,
+                loading: isPlacing,
+                onPay: () => _placeOrder(addressList),
               ),
             ],
           );
@@ -218,7 +217,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 class _AddressSection extends StatelessWidget {
   const _AddressSection({
     required this.addresses,
-    required this.addressesState,
+    required this.loading,
     required this.selectedId,
     required this.onSelect,
     required this.onNew,
@@ -226,7 +225,7 @@ class _AddressSection extends StatelessWidget {
   });
 
   final List<Address> addresses;
-  final AsyncValue<List<Address>> addressesState;
+  final bool loading;
   final String? selectedId;
   final ValueChanged<String> onSelect;
   final VoidCallback onNew;
@@ -238,40 +237,29 @@ class _AddressSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionTitle(l10n.t('checkout.address.title')),
-        if (addressesState.isLoading)
+        if (loading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
-            child: LinearProgressIndicator(),
+            child: LinearProgressIndicator(color: AppColors.gold),
           ),
         for (final a in addresses)
-          RadioListTile<String>(
-            value: a.id,
-            // ignore: deprecated_member_use
-            groupValue: selectedId,
-            // ignore: deprecated_member_use
-            onChanged: (v) => v == null ? null : onSelect(v),
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              a.fullName,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text('${a.phoneNumber}\n${a.oneLine}'),
-            isThreeLine: true,
+          _SelectableTile(
+            selected: selectedId == a.id,
+            onTap: () => onSelect(a.id),
+            title: a.fullName,
+            subtitle: '${a.phoneNumber}\n${a.oneLine}',
+            leadingIcon: Icons.location_on_outlined,
           ),
-        RadioListTile<String?>(
-          value: null,
-          // ignore: deprecated_member_use
-          groupValue: selectedId,
-          // ignore: deprecated_member_use
-          onChanged: (_) => onNew(),
-          contentPadding: EdgeInsets.zero,
-          title: Text(
-            l10n.t('checkout.address.new'),
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
+        _SelectableTile(
+          selected: selectedId == null,
+          onTap: onNew,
+          title: l10n.t('checkout.address.new'),
+          leadingIcon: Icons.add_location_alt_outlined,
         ),
-        if (selectedId == null) ...[const SizedBox(height: 8), newAddressForm],
+        if (selectedId == null) ...[
+          const SizedBox(height: AppSpacing.md),
+          newAddressForm,
+        ],
       ],
     );
   }
@@ -311,7 +299,7 @@ class _NewAddressForm extends StatelessWidget {
           validator: validators.required(),
           textInputAction: TextInputAction.next,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         AppTextField(
           label: l10n.t('address.field.phone'),
           controller: phone,
@@ -319,42 +307,42 @@ class _NewAddressForm extends StatelessWidget {
           validator: validators.phone(),
           textInputAction: TextInputAction.next,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         AppTextField(
           label: l10n.t('address.field.line1'),
           controller: line1,
           validator: validators.required(),
           textInputAction: TextInputAction.next,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         AppTextField(
           label:
               '${l10n.t('address.field.line2')} (${l10n.t('common.optional')})',
           controller: line2,
           textInputAction: TextInputAction.next,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         AppTextField(
           label: l10n.t('address.field.city'),
           controller: city,
           validator: validators.required(),
           textInputAction: TextInputAction.next,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         AppTextField(
           label:
               '${l10n.t('address.field.region')} (${l10n.t('common.optional')})',
           controller: region,
           textInputAction: TextInputAction.next,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         AppTextField(
           label: l10n.t('address.field.country'),
           controller: country,
           validator: validators.required(),
           textInputAction: TextInputAction.next,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         AppTextField(
           label:
               '${l10n.t('address.field.landmark')} (${l10n.t('common.optional')})',
@@ -375,101 +363,227 @@ class _PaymentSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionTitle(l10n.t('checkout.payment.title')),
         for (final method in PaymentMethod.values)
-          RadioListTile<PaymentMethod>(
-            value: method,
-            // ignore: deprecated_member_use
-            groupValue: selected,
-            // ignore: deprecated_member_use
-            onChanged: (m) => m == null ? null : onChanged(m),
-            contentPadding: EdgeInsets.zero,
-            title: Text(l10n.t(method.l10nKey)),
-            secondary: Icon(_iconFor(method)),
+          _SelectableTile(
+            selected: selected == method,
+            onTap: () => onChanged(method),
+            title: l10n.t(method.l10nKey),
+            leadingIcon: _iconFor(method),
           ),
       ],
     );
   }
 
-  IconData _iconFor(PaymentMethod method) {
-    switch (method) {
-      case PaymentMethod.card:
-        return Icons.credit_card;
-      default:
-        return Icons.phone_android;
-    }
-  }
+  IconData _iconFor(PaymentMethod method) =>
+      method == PaymentMethod.card ? Icons.credit_card : Icons.phone_android;
 }
 
-class _NoteField extends StatelessWidget {
-  const _NoteField({required this.controller});
-  final TextEditingController controller;
+/// Tuile sélectionnable premium (radio implicite) : bordure dorée si choisie.
+class _SelectableTile extends StatelessWidget {
+  const _SelectableTile({
+    required this.selected,
+    required this.onTap,
+    required this.title,
+    required this.leadingIcon,
+    this.subtitle,
+  });
+
+  final bool selected;
+  final VoidCallback onTap;
+  final String title;
+  final String? subtitle;
+  final IconData leadingIcon;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return AppTextField(
-      label: l10n.t('checkout.note.label'),
-      controller: controller,
-      hintText: l10n.t('checkout.note.hint'),
-      maxLines: 3,
-      textInputAction: TextInputAction.newline,
+    final theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: title,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        child: AnimatedContainer(
+          duration: AppMotion.micro,
+          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.gold.withValues(alpha: 0.07)
+                : AppColors.surface,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            border: Border.all(
+              color: selected ? AppColors.gold : AppColors.line,
+              width: selected ? 1.6 : 1,
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                leadingIcon,
+                size: 22,
+                color: selected ? AppColors.gold : AppColors.taupe,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.taupe,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                size: 20,
+                color: selected ? AppColors.gold : AppColors.line,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
 
-class _SummarySection extends StatelessWidget {
-  const _SummarySection({required this.cart});
-  final dynamic cart; // Cart
+class _Summary extends StatelessWidget {
+  const _Summary({required this.cart});
+  final Cart cart;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionTitle(l10n.t('checkout.summary.title')),
-        _row(
-          context,
-          l10n.t('checkout.summary.subtotal'),
-          cart.subtotal as int,
-        ),
-        const Divider(height: 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              l10n.t('checkout.summary.total'),
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            PriceText(
-              amount: cart.subtotal as int,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _row(BuildContext context, String label, int amount) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          PriceText(
-            amount: amount,
-            style: Theme.of(context).textTheme.bodyLarge,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                l10n.t('checkout.summary.subtotal'),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppColors.taupe,
+                ),
+              ),
+              PriceText(amount: cart.subtotal, style: theme.textTheme.bodyLarge),
+            ],
+          ),
+          const Divider(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                l10n.t('checkout.summary.total'),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              PriceText(
+                amount: cart.subtotal,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PayBar extends StatelessWidget {
+  const _PayBar({
+    required this.total,
+    required this.loading,
+    required this.onPay,
+  });
+
+  final int total;
+  final bool loading;
+  final VoidCallback onPay;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.cream,
+        border: Border(top: BorderSide(color: AppColors.line)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 16,
+            offset: Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    l10n.t('checkout.summary.total').toUpperCase(),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.taupe,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  PriceText(
+                    amount: total,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: PrimaryButton(
+                  label: l10n.t('checkout.place'),
+                  icon: Icons.lock_outline,
+                  variant: ButtonVariant.gold,
+                  loading: loading,
+                  onPressed: onPay,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -482,12 +596,14 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Text(
-        title,
-        style: Theme.of(
-          context,
-        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        title.toUpperCase(),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.6,
+          color: AppColors.taupe,
+        ),
       ),
     );
   }

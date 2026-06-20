@@ -11,13 +11,15 @@ import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/error_localizer.dart';
 import '../../../core/utils/price_formatter.dart';
 import '../../../core/widgets/app_network_image.dart';
+import '../../../core/widgets/order_timeline.dart';
 import '../../../core/widgets/price_text.dart';
+import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../application/orders_providers.dart';
 import '../data/orders_repository.dart';
 
-/// Détail d'une commande : statut, articles, livraison, paiement, actions.
+/// Détail d'une commande : statut en timeline, articles, livraison, paiement.
 class OrderDetailScreen extends ConsumerWidget {
   const OrderDetailScreen({super.key, required this.orderId});
 
@@ -68,6 +70,7 @@ class _OrderDetailBodyState extends ConsumerState<_OrderDetailBody> {
             child: Text(l10n.t('common.no')),
           ),
           TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.terracotta),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(l10n.t('common.yes')),
           ),
@@ -97,145 +100,190 @@ class _OrderDetailBodyState extends ConsumerState<_OrderDetailBody> {
     }
   }
 
-  void _payNow() {
-    // Relance la page de paiement pour une commande encore en attente.
-    context.push(AppRoutes.payment, extra: order);
-  }
+  void _payNow() => context.push(AppRoutes.payment, extra: order);
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final theme = Theme.of(context);
     final locale = ref.watch(localeControllerProvider).languageCode;
 
     return Column(
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
-              // En-tête statut
+              // En-tête : numéro + badge statut.
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(
-                      l10n.t('orders.number', {'number': order.orderNumber}),
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.t('orders.number', {
+                            'number': order.orderNumber,
+                          }),
+                          style: theme.textTheme.headlineSmall,
+                        ),
+                        if (order.placedAt != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            l10n.t('orders.placedAt', {
+                              'date': AppDateFormatter.dateTime(
+                                order.placedAt,
+                                locale,
+                              ),
+                            }),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppColors.taupe,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   OrderStatusBadge(status: order.status),
                 ],
               ),
-              if (order.placedAt != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  l10n.t('orders.placedAt', {
-                    'date': AppDateFormatter.dateTime(order.placedAt, locale),
-                  }),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: AppColors.stone),
-                ),
-              ],
-              const Divider(height: 32),
+              const SizedBox(height: AppSpacing.lg),
 
-              // Articles
-              _SectionTitle(l10n.t('orders.detail.items')),
-              ...order.items.map((item) => _OrderItemTile(item: item)),
-              const Divider(height: 32),
-
-              // Récapitulatif montants
-              _amountRow(
-                context,
-                l10n.t('checkout.summary.subtotal'),
-                order.subtotal,
-              ),
-              if (order.shippingFee > 0)
-                _amountRow(
-                  context,
-                  l10n.t('checkout.summary.shipping'),
-                  order.shippingFee,
-                ),
-              if (order.discount > 0)
-                _amountRow(
-                  context,
-                  l10n.t('checkout.summary.discount'),
-                  -order.discount,
-                ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    l10n.t('cart.total'),
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  PriceText(
-                    amount: order.total,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
+              // Timeline de suivi.
+              _Card(
+                title: l10n.t('orders.timeline'),
+                child: OrderTimeline(status: order.status),
               ),
 
-              // Livraison
-              if (order.shippingAddress != null) ...[
-                const Divider(height: 32),
-                _SectionTitle(l10n.t('orders.detail.shipping')),
-                Text(
-                  order.shippingAddress!.fullName,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+              // Articles.
+              _Card(
+                title: l10n.t('orders.detail.items'),
+                child: Column(
+                  children: order.items
+                      .map((item) => _OrderItemTile(item: item))
+                      .toList(),
                 ),
-                const SizedBox(height: 2),
-                Text(order.shippingAddress!.phoneNumber),
-                const SizedBox(height: 2),
-                Text(order.shippingAddress!.oneLine),
-              ],
+              ),
 
-              // Paiement
-              if (order.payment != null) ...[
-                const Divider(height: 32),
-                _SectionTitle(l10n.t('orders.detail.payment')),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // Récapitulatif montants.
+              _Card(
+                title: l10n.t('orders.detail.summary'),
+                child: Column(
                   children: [
-                    Text(
-                      order.payment!.provider.isEmpty
-                          ? l10n.t('orders.detail.payment')
-                          : order.payment!.provider,
+                    _amountRow(
+                      context,
+                      l10n.t('checkout.summary.subtotal'),
+                      order.subtotal,
                     ),
-                    Text(
-                      l10n.t(order.payment!.status.l10nKey),
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    if (order.shippingFee > 0)
+                      _amountRow(
+                        context,
+                        l10n.t('checkout.summary.shipping'),
+                        order.shippingFee,
+                      ),
+                    if (order.discount > 0)
+                      _amountRow(
+                        context,
+                        l10n.t('checkout.summary.discount'),
+                        -order.discount,
+                      ),
+                    const Divider(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          l10n.t('cart.total'),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        PriceText(
+                          amount: order.total,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                if (order.payment!.paymentMethod != null) ...[
-                  const SizedBox(height: 4),
-                  Text(l10n.t(order.payment!.paymentMethod!.l10nKey)),
-                ],
-              ],
+              ),
 
-              if (order.customerNote != null &&
-                  order.customerNote!.isNotEmpty) ...[
-                const Divider(height: 32),
-                _SectionTitle(l10n.t('checkout.note.label')),
-                Text(order.customerNote!),
-              ],
+              if (order.shippingAddress != null)
+                _Card(
+                  title: l10n.t('orders.detail.shipping'),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order.shippingAddress!.fullName,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(order.shippingAddress!.phoneNumber),
+                      const SizedBox(height: 2),
+                      Text(
+                        order.shippingAddress!.oneLine,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: AppColors.taupe,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              if (order.payment != null)
+                _Card(
+                  title: l10n.t('orders.detail.payment'),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            order.payment!.provider.isEmpty
+                                ? l10n.t('orders.detail.payment')
+                                : order.payment!.provider,
+                          ),
+                          Text(
+                            l10n.t(order.payment!.status.l10nKey),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      if (order.payment!.paymentMethod != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          l10n.t(order.payment!.paymentMethod!.l10nKey),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: AppColors.taupe,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+              if (order.customerNote != null && order.customerNote!.isNotEmpty)
+                _Card(
+                  title: l10n.t('orders.detail.note'),
+                  child: Text(order.customerNote!),
+                ),
             ],
           ),
         ),
         if (order.status.isCancellable || order.status.isPayable)
           _ActionBar(
-            order: order,
             cancelling: _cancelling,
             onCancel: order.status.isCancellable ? _cancel : null,
-            onPay: order.status.isPayable && order.payment?.checkoutUrl != null
+            onPay:
+                order.status.isPayable &&
+                    order.payment?.checkoutUrl != null
                 ? _payNow
                 : null,
           ),
@@ -249,11 +297,48 @@ class _OrderDetailBodyState extends ConsumerState<_OrderDetailBody> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          PriceText(
-            amount: amount,
-            style: Theme.of(context).textTheme.bodyLarge,
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColors.taupe,
+            ),
           ),
+          PriceText(amount: amount, style: Theme.of(context).textTheme.bodyLarge),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bloc de détail encadré, avec titre en capitales.
+class _Card extends StatelessWidget {
+  const _Card({required this.title, required this.child});
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.6,
+              color: AppColors.taupe,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          child,
         ],
       ),
     );
@@ -266,8 +351,9 @@ class _OrderItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -275,36 +361,35 @@ class _OrderItemTile extends StatelessWidget {
             url: item.imageUrl,
             width: 56,
             height: 70,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   item.productName,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 if (item.variantLabel.isNotEmpty)
                   Text(
                     item.variantLabel,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: AppColors.stone),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.taupe,
+                    ),
                   ),
                 const SizedBox(height: 4),
                 Text(
                   '${item.quantity} × ${PriceFormatter.format(item.unitPrice, currency: context.l10n.t('common.currency'))}',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: theme.textTheme.bodySmall,
                 ),
               ],
             ),
           ),
-          PriceText(
-            amount: item.lineTotal,
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
+          PriceText(amount: item.lineTotal, style: theme.textTheme.bodyLarge),
         ],
       ),
     );
@@ -312,14 +397,8 @@ class _OrderItemTile extends StatelessWidget {
 }
 
 class _ActionBar extends StatelessWidget {
-  const _ActionBar({
-    required this.order,
-    required this.cancelling,
-    this.onCancel,
-    this.onPay,
-  });
+  const _ActionBar({required this.cancelling, this.onCancel, this.onPay});
 
-  final Order order;
   final bool cancelling;
   final VoidCallback? onCancel;
   final VoidCallback? onPay;
@@ -327,61 +406,51 @@ class _ActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          border: Border(top: BorderSide(color: AppColors.line)),
-        ),
-        child: Row(
-          children: [
-            if (onCancel != null)
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: cancelling ? null : onCancel,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.danger,
-                    side: const BorderSide(color: AppColors.danger),
-                  ),
-                  child: cancelling
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(l10n.t('orders.cancel')),
-                ),
-              ),
-            if (onCancel != null && onPay != null) const SizedBox(width: 12),
-            if (onPay != null)
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: onPay,
-                  child: Text(l10n.t('orders.payNow')),
-                ),
-              ),
-          ],
-        ),
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.cream,
+        border: Border(top: BorderSide(color: AppColors.line)),
       ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.title);
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: Theme.of(
-          context,
-        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              if (onCancel != null)
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: cancelling ? null : onCancel,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.terracotta,
+                      side: const BorderSide(color: AppColors.terracotta),
+                      minimumSize: const Size.fromHeight(52),
+                    ),
+                    child: cancelling
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.terracotta,
+                            ),
+                          )
+                        : Text(l10n.t('orders.cancel')),
+                  ),
+                ),
+              if (onCancel != null && onPay != null)
+                const SizedBox(width: AppSpacing.md),
+              if (onPay != null)
+                Expanded(
+                  child: PrimaryButton(
+                    label: l10n.t('orders.payNow'),
+                    variant: ButtonVariant.gold,
+                    onPressed: onPay,
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

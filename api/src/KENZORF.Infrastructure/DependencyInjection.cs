@@ -23,7 +23,12 @@ public static class DependencyInjection
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
-                npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)));
+            {
+                npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
+                // Évite le produit cartésien (et le warning runtime) sur les requêtes multi-collections
+                // (produits + variantes + images, commandes + items + payments...).
+                npgsql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+            }));
 
         // Exposition des abstractions Application vers le même DbContext (scopé).
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
@@ -32,8 +37,9 @@ public static class DependencyInjection
         services
             .AddIdentityCore<ApplicationUser>(options =>
             {
+                // Politique de mot de passe renforcée : ≥ 8, chiffre, majuscule, minuscule, non-alphanumérique.
                 options.Password.RequiredLength = 8;
-                options.Password.RequireNonAlphanumeric = false;
+                options.Password.RequireNonAlphanumeric = true;
                 options.Password.RequireUppercase = true;
                 options.Password.RequireLowercase = true;
                 options.Password.RequireDigit = true;

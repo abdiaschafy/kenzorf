@@ -7,6 +7,7 @@ public static class ErrorCodes
     public const string InternalError = "common.internalError";
     public const string Unauthorized = "auth.unauthorized";
     public const string Forbidden = "common.forbidden";
+    public const string TooManyRequests = "common.tooManyRequests";
 
     public const string AuthInvalidCredentials = "auth.invalidCredentials";
     public const string AuthEmailAlreadyUsed = "auth.emailAlreadyUsed";
@@ -43,4 +44,6 @@ public static class ErrorCodes
     public const string CustomerNotFound = "customers.notFound";
 
     public const string UploadInvalidFile = "uploads.invalidFile";
+    public const string UploadInvalidImageUrl = "uploads.invalidImageUrl";
+    public const string UploadUnsupportedType = "uploads.unsupportedType";
 }

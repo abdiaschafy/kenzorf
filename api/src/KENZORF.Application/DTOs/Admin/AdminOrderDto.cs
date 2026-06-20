@@ -21,6 +21,7 @@ public sealed record AdminOrderDto(
     IReadOnlyList<OrderItemDto> Items,
     OrderShippingAddressDto ShippingAddress,
     string? CustomerNote,
+    string? AdminNote,
     PaymentDto? Payment,
     DateTimeOffset PlacedAt,
     DateTimeOffset? PaidAt,

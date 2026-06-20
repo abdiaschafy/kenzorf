@@ -25,7 +25,6 @@ namespace KENZORF.Infrastructure.Migrations
             modelBuilder.Entity("KENZORF.Domain.Entities.Address", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("City")
@@ -92,7 +91,6 @@ namespace KENZORF.Infrastructure.Migrations
             modelBuilder.Entity("KENZORF.Domain.Entities.Cart", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedAt")
@@ -115,7 +113,6 @@ namespace KENZORF.Infrastructure.Migrations
             modelBuilder.Entity("KENZORF.Domain.Entities.CartItem", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("CartId")
@@ -143,7 +140,6 @@ namespace KENZORF.Infrastructure.Migrations
             modelBuilder.Entity("KENZORF.Domain.Entities.Category", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedAt")
@@ -194,7 +190,6 @@ namespace KENZORF.Infrastructure.Migrations
             modelBuilder.Entity("KENZORF.Domain.Entities.Customer", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedAt")
@@ -233,8 +228,11 @@ namespace KENZORF.Infrastructure.Migrations
             modelBuilder.Entity("KENZORF.Domain.Entities.Order", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<string>("AdminNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<DateTimeOffset?>("CancelledAt")
                         .HasColumnType("timestamp with time zone");
@@ -342,7 +340,6 @@ namespace KENZORF.Infrastructure.Migrations
             modelBuilder.Entity("KENZORF.Domain.Entities.OrderItem", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("ImageUrl")
@@ -388,7 +385,6 @@ namespace KENZORF.Infrastructure.Migrations
             modelBuilder.Entity("KENZORF.Domain.Entities.Payment", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<decimal>("Amount")
@@ -460,7 +456,6 @@ namespace KENZORF.Infrastructure.Migrations
             modelBuilder.Entity("KENZORF.Domain.Entities.Product", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<decimal>("BasePrice")
@@ -539,7 +534,6 @@ namespace KENZORF.Infrastructure.Migrations
             modelBuilder.Entity("KENZORF.Domain.Entities.ProductImage", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("AltText")
@@ -570,7 +564,6 @@ namespace KENZORF.Infrastructure.Migrations
             modelBuilder.Entity("KENZORF.Domain.Entities.ProductVariant", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("Color")
@@ -619,13 +612,15 @@ namespace KENZORF.Infrastructure.Migrations
                     b.HasIndex("Sku")
                         .IsUnique();
 
-                    b.ToTable("product_variants", (string)null);
+                    b.ToTable("product_variants", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_product_variants_StockQuantity", "\"StockQuantity\" >= 0");
+                        });
                 });
 
             modelBuilder.Entity("KENZORF.Infrastructure.Identity.ApplicationRole", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("ConcurrencyStamp")
@@ -652,7 +647,6 @@ namespace KENZORF.Infrastructure.Migrations
             modelBuilder.Entity("KENZORF.Infrastructure.Identity.ApplicationUser", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<int>("AccessFailedCount")
@@ -723,7 +717,6 @@ namespace KENZORF.Infrastructure.Migrations
             modelBuilder.Entity("KENZORF.Infrastructure.Identity.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedAt")

@@ -83,7 +83,7 @@ public sealed class AuthService : IAuthService
         var (userId, role, customerId) = credentials.Value;
         var tokens = await _tokens.IssueTokensAsync(userId, email, role, customerId, cancellationToken);
 
-        var user = await BuildUserDtoAsync(userId, email, role, cancellationToken);
+        var user = await BuildUserDtoAsync(userId, email, role, customerId, cancellationToken);
         return new AuthResponse(tokens.AccessToken, tokens.RefreshToken, tokens.AccessTokenExpiresAt, user);
     }
 
@@ -98,7 +98,7 @@ public sealed class AuthService : IAuthService
         }
 
         var (tokens, userId, email, role) = rotated.Value;
-        var user = await BuildUserDtoAsync(userId, email, role, cancellationToken);
+        var user = await BuildUserDtoAsync(userId, email, role, _currentUser.CustomerId, cancellationToken);
         return new AuthResponse(tokens.AccessToken, tokens.RefreshToken, tokens.AccessTokenExpiresAt, user);
     }
 
@@ -117,16 +117,19 @@ public sealed class AuthService : IAuthService
 
         var role = _currentUser.IsAdmin ? AppRoles.Admin : AppRoles.Customer;
         var email = _currentUser.Email ?? string.Empty;
-        return await BuildUserDtoAsync(_currentUser.UserId.Value, email, role, cancellationToken);
+        return await BuildUserDtoAsync(_currentUser.UserId.Value, email, role, _currentUser.CustomerId,
+            cancellationToken);
     }
 
-    private async Task<UserDto> BuildUserDtoAsync(Guid userId, string email, string role,
+    private async Task<UserDto> BuildUserDtoAsync(Guid userId, string email, string role, Guid? customerId,
         CancellationToken cancellationToken)
     {
-        // Le profil client est lié par email (l'admin possède aussi un profil Customer dans le seed).
-        var customer = await _db.Customers
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Email == email, cancellationToken);
+        // Profil client résolu en priorité par l'identifiant porté par le claim (ApplicationUser.CustomerId),
+        // plus fiable que l'email (l'admin partage un email avec un profil Customer dans le seed). Repli par
+        // email seulement si le claim n'est pas disponible (ex. rotation sans access token).
+        var customer = customerId.HasValue
+            ? await _db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == customerId.Value, cancellationToken)
+            : await _db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Email == email, cancellationToken);
 
         if (customer is null)
         {

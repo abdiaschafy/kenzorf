@@ -141,7 +141,7 @@ class _PaymentWebViewScreenState extends ConsumerState<PaymentWebViewScreen> {
             if (_webController != null)
               WebViewWidget(controller: _webController!),
             if (_pageLoading)
-              const ColoredBox(color: Colors.white, child: LoadingView()),
+              const ColoredBox(color: AppColors.cream, child: LoadingView()),
             // Bandeau d'attente de confirmation serveur.
             Positioned(
               left: 0,

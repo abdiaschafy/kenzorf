@@ -22,6 +22,8 @@ class AddressesScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(l10n.t('address.title'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(context),
+        backgroundColor: AppColors.charcoal,
+        foregroundColor: AppColors.cream,
         icon: const Icon(Icons.add),
         label: Text(l10n.t('address.add')),
       ),
@@ -82,6 +84,7 @@ class AddressesScreen extends ConsumerWidget {
             child: Text(l10n.t('common.cancel')),
           ),
           TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.terracotta),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(l10n.t('common.delete')),
           ),
@@ -146,18 +149,24 @@ class _AddressCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
+                            horizontal: 9,
+                            vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.accent.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
+                            color: AppColors.gold.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(
+                              AppSpacing.radiusSm,
+                            ),
+                            border: Border.all(
+                              color: AppColors.gold.withValues(alpha: 0.4),
+                            ),
                           ),
                           child: Text(
-                            l10n.t('address.default'),
+                            l10n.t('address.default').toUpperCase(),
                             style: const TextStyle(
                               color: AppColors.accentDark,
-                              fontSize: 11,
+                              fontSize: 10,
+                              letterSpacing: 0.8,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -191,7 +200,7 @@ class _AddressCard extends StatelessWidget {
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
-                  color: AppColors.danger,
+                  color: AppColors.terracotta,
                   onPressed: onDelete,
                 ),
               ],

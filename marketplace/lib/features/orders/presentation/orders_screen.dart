@@ -9,12 +9,14 @@ import '../../../core/router/routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/error_localizer.dart';
+import '../../../core/widgets/editorial.dart';
 import '../../../core/widgets/price_text.dart';
+import '../../../core/widgets/reveal.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../application/orders_providers.dart';
 
-/// Liste des commandes du client.
+/// Liste des commandes du client — cartes éditoriales.
 class OrdersScreen extends ConsumerWidget {
   const OrdersScreen({super.key});
 
@@ -42,12 +44,16 @@ class OrdersScreen extends ConsumerWidget {
             );
           }
           return RefreshIndicator(
+            color: AppColors.gold,
             onRefresh: () async => ref.invalidate(ordersListProvider),
             child: ListView.separated(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.md),
               itemCount: orders.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, i) => _OrderCard(order: orders[i]),
+              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+              itemBuilder: (context, i) => Reveal(
+                delay: AppMotion.stagger * (i.clamp(0, 6)),
+                child: _OrderCard(order: orders[i]),
+              ),
             ),
           );
         },
@@ -63,58 +69,68 @@ class _OrderCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final theme = Theme.of(context);
     final locale = ref.watch(localeControllerProvider).languageCode;
 
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () => context.push(AppRoutes.orderDetailPath(order.id)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      l10n.t('orders.number', {'number': order.orderNumber}),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+    return PressableScale(
+      onTap: () => context.push(AppRoutes.orderDetailPath(order.id)),
+      semanticLabel: l10n.t('orders.number', {'number': order.orderNumber}),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          border: Border.all(color: AppColors.line),
+        ),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.t('orders.number', {'number': order.orderNumber}),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  OrderStatusBadge(status: order.status),
-                ],
+                ),
+                OrderStatusBadge(status: order.status),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              order.placedAt == null
+                  ? ''
+                  : l10n.t('orders.placedAt', {
+                      'date': AppDateFormatter.date(order.placedAt, locale),
+                    }),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.taupe,
               ),
-              const SizedBox(height: 8),
-              Text(
-                l10n.t('orders.placedAt', {
-                  'date': AppDateFormatter.date(order.placedAt, locale),
-                }),
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.stone),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    l10n.t('orders.itemCount', {'count': order.itemCount}),
-                    style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const Divider(height: 1),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  l10n.t('orders.itemCount', {'count': order.itemCount}),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: AppColors.taupe,
                   ),
-                  PriceText(
-                    amount: order.total,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                ),
+                PriceText(
+                  amount: order.total,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

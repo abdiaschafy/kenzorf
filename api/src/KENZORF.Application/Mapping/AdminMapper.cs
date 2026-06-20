@@ -116,6 +116,7 @@ public static class AdminMapper
             order.Items.Select(OrderMapper.ToDto).ToList(),
             OrderMapper.ToShippingAddress(order),
             order.CustomerNote,
+            order.AdminNote,
             latestPayment is null ? null : PaymentMapper.ToDto(latestPayment),
             order.CreatedAt,
             order.PaidAt,

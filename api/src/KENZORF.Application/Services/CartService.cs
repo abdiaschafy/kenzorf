@@ -70,10 +70,9 @@ public sealed class CartService : ICartService
                 UnitPrice = unitPrice,
             };
 
-            // La clé Guid est ValueGeneratedOnAdd et BaseEntity initialise déjà Id à Guid.NewGuid() :
-            // ajouté au seul graphe suivi du panier, EF interpréterait cette clé non-vide comme un
-            // enregistrement existant et émettrait un UPDATE (0 ligne -> DbUpdateConcurrencyException).
-            // L'ajout explicite via le DbSet force l'état Added -> INSERT.
+            // Nouvel enfant attaché à un panier déjà suivi : ajout explicite via le DbSet pour forcer
+            // l'état Added -> INSERT. Les clés Guid sont ValueGeneratedNever (voir AppDbContext.
+            // OnModelCreating), ce qui rend cet ajout fiable y compris hors du graphe racine.
             _db.CartItems.Add(item);
             cart.Items.Add(item);
         }

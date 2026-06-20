@@ -1,7 +1,9 @@
+using KENZORF.Api.Configuration;
 using KENZORF.Application.Contracts;
 using KENZORF.Application.DTOs.Payments;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace KENZORF.Api.Controllers;
 
@@ -28,6 +30,7 @@ public sealed class PaymentsController : ControllerBase
 
     [HttpPost("webhook")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitingExtensions.WebhookPolicy)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> Webhook(CancellationToken cancellationToken)
     {

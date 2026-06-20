@@ -1,3 +1,4 @@
+using KENZORF.Application.Common;
 using KENZORF.Application.Contracts;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -33,6 +34,8 @@ public sealed class LocalImageStorage : IImageStorage
         var extension = Path.GetExtension(fileName);
         if (string.IsNullOrWhiteSpace(extension) || !AllowedExtensions.Contains(extension))
         {
+            // Pas de valeur par défaut silencieuse : on dérive l'extension du type MIME (lui-même validé en
+            // amont par ImageUploadService) ; un type inconnu est rejeté.
             extension = ResolveExtension(contentType);
         }
 
@@ -54,11 +57,12 @@ public sealed class LocalImageStorage : IImageStorage
     }
 
     private static string ResolveExtension(string contentType)
-        => contentType.ToLowerInvariant() switch
+        => contentType.Trim().ToLowerInvariant() switch
         {
+            "image/jpeg" => ".jpg",
             "image/png" => ".png",
             "image/webp" => ".webp",
             "image/gif" => ".gif",
-            _ => ".jpg",
+            _ => throw new ValidationException(ErrorCodes.UploadUnsupportedType),
         };
 }

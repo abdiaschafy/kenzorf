@@ -203,10 +203,8 @@ public sealed class AdminProductService : IAdminProductService
     {
         var product = await LoadProductAsync(productId, cancellationToken);
 
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            throw new Common.ValidationException(ErrorCodes.UploadInvalidFile);
-        }
+        // Mode URL distante : exiger http(s) absolu (ou une URL relative à l'app), rejeter javascript:/data:.
+        var safeUrl = ImageUrlGuard.EnsureValid(url);
 
         if (isPrimary)
         {
@@ -219,7 +217,7 @@ public sealed class AdminProductService : IAdminProductService
         var image = new ProductImage
         {
             ProductId = product.Id,
-            Url = url.Trim(),
+            Url = safeUrl,
             AltText = altText?.Trim(),
             IsPrimary = isPrimary || product.Images.Count == 0,
             DisplayOrder = product.Images.Count,
@@ -396,7 +394,8 @@ public sealed class AdminProductService : IAdminProductService
             var image = ordered[index];
             yield return new ProductImage
             {
-                Url = image.Url.Trim(),
+                // Valide le schéma (http(s) absolu ou URL relative à l'app) ; rejette javascript:/data:.
+                Url = ImageUrlGuard.EnsureValid(image.Url),
                 AltText = image.AltText?.Trim(),
                 IsPrimary = image.IsPrimary || (!hasPrimary && index == 0),
                 DisplayOrder = index,

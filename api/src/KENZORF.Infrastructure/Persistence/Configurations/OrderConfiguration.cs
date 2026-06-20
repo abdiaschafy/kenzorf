@@ -31,6 +31,7 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.ShippingCountry).IsRequired().HasMaxLength(120);
         builder.Property(o => o.ShippingLandmark).HasMaxLength(250);
         builder.Property(o => o.CustomerNote).HasMaxLength(1000);
+        builder.Property(o => o.AdminNote).HasMaxLength(1000);
 
         builder.HasIndex(o => o.OrderNumber).IsUnique();
         builder.HasIndex(o => o.CustomerId);

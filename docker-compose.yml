@@ -41,7 +41,7 @@ services:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-kenzorf};Username=${POSTGRES_USER:-kenzorf};Password=${POSTGRES_PASSWORD:-kenzorf}
       Jwt__Issuer: ${Jwt__Issuer:-kenzorf}
       Jwt__Audience: ${Jwt__Audience:-kenzorf}
-      Jwt__Key: ${Jwt__Key:-please-change-this-to-a-long-random-secret-at-least-32-chars}
+      Jwt__Key: "${Jwt__Key:?Definir un secret JWT fort de 32+ caracteres dans .env (openssl rand -base64 48)}"
       Jwt__AccessMinutes: ${Jwt__AccessMinutes:-15}
       Jwt__RefreshDays: ${Jwt__RefreshDays:-14}
       KPay__BaseUrl: ${KPay__BaseUrl:-}

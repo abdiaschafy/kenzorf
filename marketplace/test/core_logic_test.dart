@@ -4,11 +4,27 @@
 // mapping des enums (string <-> Dart), la parité i18n fr/en et le parsing des
 // DTOs clés.
 
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kenzorf_marketplace/core/api/api_exception.dart';
 import 'package:kenzorf_marketplace/core/l10n/app_strings.dart';
+import 'package:kenzorf_marketplace/core/models/cart.dart';
 import 'package:kenzorf_marketplace/core/models/enums.dart';
 import 'package:kenzorf_marketplace/core/models/product.dart';
 import 'package:kenzorf_marketplace/core/utils/price_formatter.dart';
+
+DioException _dioError({required int status, required Object data}) {
+  final req = RequestOptions(path: '/cart/items');
+  return DioException(
+    requestOptions: req,
+    response: Response<Object>(
+      requestOptions: req,
+      statusCode: status,
+      data: data,
+    ),
+    type: DioExceptionType.badResponse,
+  );
+}
 
 void main() {
   group('PriceFormatter (FCFA, montants entiers)', () {
@@ -62,6 +78,105 @@ void main() {
         isEmpty,
         reason: 'Clés présentes en en mais absentes en fr',
       );
+    });
+
+    test('les clés d\'erreur panier sont traduites (fr + en)', () {
+      for (final key in const [
+        'cart.quantity.max',
+        'cart.quantity.min',
+        'cart.productVariantId.required',
+        'common.validationFailed',
+        'variant.outOfStock',
+      ]) {
+        expect(kStringsFr.containsKey(key), isTrue, reason: 'fr manque $key');
+        expect(kStringsEn.containsKey(key), isTrue, reason: 'en manque $key');
+      }
+    });
+  });
+
+  group('ApiException — extraction des clés de validation (bug panier)', () {
+    test('422 FluentValidation : remonte la clé de champ (cart.quantity.max)',
+        () {
+      final ex = ApiException.fromDio(
+        _dioError(
+          status: 422,
+          data: {
+            'code': 'common.validationFailed',
+            'messageKey': 'common.validationFailed',
+            'params': <String, dynamic>{},
+            'status': 422,
+            'errors': {
+              'quantity': ['cart.quantity.max'],
+            },
+          },
+        ),
+      );
+      // La clé de champ est préférée au messageKey générique : message précis.
+      expect(ex.messageKey, 'cart.quantity.max');
+      expect(ex.status, 422);
+    });
+
+    test('ProblemDetails ASP.NET (400) sans code : ignore les phrases brutes',
+        () {
+      final ex = ApiException.fromDio(
+        _dioError(
+          status: 400,
+          data: {
+            'title': 'One or more validation errors occurred.',
+            'status': 400,
+            'errors': {
+              'request': ['The request field is required.'],
+            },
+          },
+        ),
+      );
+      // "The request field is required." n'est pas une clé i18n -> repli.
+      expect(ex.messageKey, 'error.unknown');
+      expect(ex.status, 400);
+    });
+
+    test('erreur métier standard : conserve le messageKey', () {
+      final ex = ApiException.fromDio(
+        _dioError(
+          status: 409,
+          data: {
+            'code': 'variant.outOfStock',
+            'messageKey': 'variant.outOfStock',
+            'status': 409,
+          },
+        ),
+      );
+      expect(ex.messageKey, 'variant.outOfStock');
+    });
+  });
+
+  group('Cart parsing — montants FCFA en double (contrat API)', () {
+    test('parse des prix renvoyés en float (12000.0) sans erreur', () {
+      final cart = Cart.fromJson({
+        'id': 'cart1',
+        'subtotal': 24000.0,
+        'totalQuantity': 2,
+        'currency': 'XOF',
+        'items': [
+          {
+            'id': 'it1',
+            'productVariantId': 'v1',
+            'productId': 'p1',
+            'productName': 'Bonnet',
+            'productSlug': 'bonnet',
+            'size': 'Taille unique',
+            'color': 'Gris',
+            'unitPrice': 12000.0,
+            'quantity': 2,
+            'lineTotal': 24000.0,
+            'stockQuantity': 20,
+          },
+        ],
+      });
+      expect(cart.subtotal, 24000);
+      expect(cart.items.first.unitPrice, 12000);
+      expect(cart.items.first.lineTotal, 24000);
+      expect(cart.items.first.stockQuantity, 20);
     });
   });
 

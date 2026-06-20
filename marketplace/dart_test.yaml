@@ -1,0 +1,9 @@
+# Configuration de la suite de tests.
+#
+# Les tests marqués `@Tags(['live'])` font des appels réseau réels à l'API
+# locale et ne doivent PAS tourner dans la suite unitaire (offline / CI). Ils
+# sont donc SKIPPÉS par défaut et se lancent explicitement :
+#   flutter test test/cart_live_probe_test.dart --run-skipped --tags live
+tags:
+  live:
+    skip: "réseau requis (API locale) — lancer avec --run-skipped --tags live"

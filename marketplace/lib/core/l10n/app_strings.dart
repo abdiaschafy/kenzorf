@@ -12,6 +12,8 @@ library;
 const Map<String, String> kStringsFr = <String, String>{
   // --- Générique ---
   'app.name': 'KENZORF',
+  'brand.tagline': 'MODE CONTEMPORAINE',
+  'brand.signature': 'Façonné à Abidjan',
   'common.retry': 'Réessayer',
   'common.cancel': 'Annuler',
   'common.confirm': 'Confirmer',
@@ -75,12 +77,22 @@ const Map<String, String> kStringsFr = <String, String>{
   'auth.guard.message': 'Connectez-vous pour accéder à cette section.',
 
   // --- Accueil ---
-  'home.hero.title': 'La marque KENZORF',
-  'home.hero.subtitle': 'Vêtements et accessoires, livrés chez vous.',
-  'home.hero.cta': 'Découvrir',
-  'home.featured': 'Sélection du moment',
-  'home.categories': 'Catégories',
+  'home.hero.overline': 'Collection signature',
+  'home.hero.title': 'L’élégance,\nà la mesure d’Abidjan',
+  'home.hero.subtitle':
+      'Pièces façonnées avec soin, livrées partout en Afrique.',
+  'home.hero.cta': 'Découvrir la collection',
+  'home.featured.overline': 'Coups de cœur',
+  'home.featured': 'La sélection',
+  'home.categories.overline': 'Explorer',
+  'home.categories': 'Les rayons',
+  'home.newArrivals.overline': 'Tout juste arrivé',
   'home.newArrivals': 'Nouveautés',
+  'home.editorial.title': 'Un vestiaire pensé\npour durer',
+  'home.editorial.body':
+      'Des matières nobles, des coupes justes et une fabrication maîtrisée. '
+          'KENZORF habille le quotidien avec une exigence discrète.',
+  'home.story.cta': 'Voir tout le catalogue',
 
   // --- Catalogue ---
   'catalog.title': 'Catalogue',
@@ -117,6 +129,11 @@ const Map<String, String> kStringsFr = <String, String>{
   'product.added': 'Article ajouté au panier',
   'product.selectVariant': 'Veuillez choisir une variante',
   'product.variantOutOfStock': 'Cette variante est en rupture de stock',
+  'product.details': 'Le détail',
+  'product.overview': 'La pièce',
+  'product.viewCart': 'Voir le panier',
+  'catalog.resultCount': '{count} pièce(s)',
+  'catalog.all': 'Tout le catalogue',
 
   // --- Panier ---
   'cart.title': 'Mon panier',
@@ -182,6 +199,9 @@ const Map<String, String> kStringsFr = <String, String>{
   'orders.cancel': 'Annuler la commande',
   'orders.cancelled': 'Commande annulée',
   'orders.payNow': 'Payer',
+  'orders.timeline': 'Suivi',
+  'orders.detail.summary': 'Récapitulatif',
+  'orders.detail.note': 'Note',
 
   // --- Statuts de commande ---
   'orderStatus.Pending': 'En attente de paiement',
@@ -243,16 +263,24 @@ const Map<String, String> kStringsFr = <String, String>{
   'orders.notFound': 'Commande introuvable.',
   'cart.empty': 'Votre panier est vide.',
   'cart.itemNotFound': 'Article introuvable dans le panier.',
+  'cart.quantity.max': 'Quantité supérieure au stock disponible.',
+  'cart.quantity.min': 'La quantité doit être d’au moins 1.',
+  'cart.productVariantId.required': 'Veuillez choisir une variante valide.',
+  'cart.addError': "Impossible d'ajouter cet article au panier.",
+  'cart.updateError': 'Impossible de mettre à jour la quantité.',
   'product.notFound': 'Produit introuvable.',
   'variant.outOfStock': 'Stock insuffisant pour cet article.',
   'payment.failed': 'Le paiement a échoué.',
   'validation.failed': 'Certaines informations sont invalides.',
+  'common.validationFailed': 'Certaines informations sont invalides.',
 };
 
 /// Table des libellés anglais (parité obligatoire avec [kStringsFr]).
 const Map<String, String> kStringsEn = <String, String>{
   // --- Generic ---
   'app.name': 'KENZORF',
+  'brand.tagline': 'CONTEMPORARY FASHION',
+  'brand.signature': 'Crafted in Abidjan',
   'common.retry': 'Retry',
   'common.cancel': 'Cancel',
   'common.confirm': 'Confirm',
@@ -314,12 +342,21 @@ const Map<String, String> kStringsEn = <String, String>{
   'auth.guard.message': 'Sign in to access this section.',
 
   // --- Home ---
-  'home.hero.title': 'The KENZORF brand',
-  'home.hero.subtitle': 'Clothing and accessories, delivered to you.',
-  'home.hero.cta': 'Explore',
-  'home.featured': 'Featured selection',
-  'home.categories': 'Categories',
+  'home.hero.overline': 'Signature collection',
+  'home.hero.title': 'Elegance,\ntailored to Abidjan',
+  'home.hero.subtitle': 'Carefully crafted pieces, delivered across Africa.',
+  'home.hero.cta': 'Explore the collection',
+  'home.featured.overline': 'Favourites',
+  'home.featured': 'The edit',
+  'home.categories.overline': 'Browse',
+  'home.categories': 'Departments',
+  'home.newArrivals.overline': 'Just landed',
   'home.newArrivals': 'New arrivals',
+  'home.editorial.title': 'A wardrobe\nmade to last',
+  'home.editorial.body':
+      'Noble fabrics, precise cuts and considered making. KENZORF dresses '
+          'everyday life with quiet rigour.',
+  'home.story.cta': 'See the full catalog',
 
   // --- Catalog ---
   'catalog.title': 'Catalog',
@@ -356,6 +393,11 @@ const Map<String, String> kStringsEn = <String, String>{
   'product.added': 'Item added to cart',
   'product.selectVariant': 'Please select a variant',
   'product.variantOutOfStock': 'This variant is out of stock',
+  'product.details': 'The details',
+  'product.overview': 'The piece',
+  'product.viewCart': 'View cart',
+  'catalog.resultCount': '{count} piece(s)',
+  'catalog.all': 'All products',
 
   // --- Cart ---
   'cart.title': 'My cart',
@@ -420,6 +462,9 @@ const Map<String, String> kStringsEn = <String, String>{
   'orders.cancel': 'Cancel order',
   'orders.cancelled': 'Order cancelled',
   'orders.payNow': 'Pay',
+  'orders.timeline': 'Tracking',
+  'orders.detail.summary': 'Summary',
+  'orders.detail.note': 'Note',
 
   // --- Order statuses ---
   'orderStatus.Pending': 'Awaiting payment',
@@ -480,8 +525,14 @@ const Map<String, String> kStringsEn = <String, String>{
   'orders.notFound': 'Order not found.',
   'cart.empty': 'Your cart is empty.',
   'cart.itemNotFound': 'Item not found in cart.',
+  'cart.quantity.max': 'Quantity exceeds available stock.',
+  'cart.quantity.min': 'Quantity must be at least 1.',
+  'cart.productVariantId.required': 'Please select a valid variant.',
+  'cart.addError': 'Could not add this item to your cart.',
+  'cart.updateError': 'Could not update the quantity.',
   'product.notFound': 'Product not found.',
   'variant.outOfStock': 'Not enough stock for this item.',
   'payment.failed': 'The payment failed.',
   'validation.failed': 'Some information is invalid.',
+  'common.validationFailed': 'Some information is invalid.',
 };

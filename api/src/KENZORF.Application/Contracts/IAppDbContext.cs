@@ -22,4 +22,10 @@ public interface IAppDbContext
     DbSet<Payment> Payments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Démarre une transaction de base de données pour des opérations atomiques (ex. traitement idempotent
+    /// du webhook de paiement : transition d'état + décrément de stock conditionnels).
+    /// </summary>
+    Task<IAppTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
 }

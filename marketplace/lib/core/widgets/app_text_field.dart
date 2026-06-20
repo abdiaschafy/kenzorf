@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 /// Champ de saisie standard KENZORF, avec label et gestion d'erreur.
 class AppTextField extends StatelessWidget {
   const AppTextField({
@@ -43,12 +45,14 @@ class AppTextField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(bottom: 6, left: 2),
+          padding: const EdgeInsets.only(bottom: 8, left: 2),
           child: Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+            label.toUpperCase(),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
+              color: AppColors.taupe,
+            ),
           ),
         ),
         TextFormField(

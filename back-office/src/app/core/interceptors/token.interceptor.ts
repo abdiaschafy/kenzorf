@@ -27,6 +27,11 @@ function withBearer(req: HttpRequest<unknown>, token: string): HttpRequest<unkno
 /**
  * Ajoute le Bearer sur les appels API et tente un refresh transparent sur 401.
  * Les requêtes d'auth (login/refresh/logout) ne sont pas réauthentifiées.
+ *
+ * Durcissement E2 : `auth.accessToken` est lu en mémoire (jamais persisté). Au
+ * démarrage, le silent-refresh (provideAppInitializer) le restaure depuis le
+ * refresh token avant tout appel applicatif ; un éventuel 401 (token absent ou
+ * expiré) déclenche le refresh transparent ci-dessous via le refresh token.
  */
 export function tokenInterceptor(
   req: HttpRequest<unknown>,
