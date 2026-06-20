@@ -1,4 +1,5 @@
 using KENZORF.Application.Contracts;
+using KENZORF.Domain.Common;
 using KENZORF.Domain.Entities;
 using KENZORF.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -63,6 +64,15 @@ public sealed class AppDbContext
         // simples. Les clés `int` d'Identity (AspNetUserClaims, AspNetRoleClaims) restent inchangées.
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
+            // UNIQUEMENT les entités du domaine (dérivent de BaseEntity → s'auto-assignent `Id = Guid.NewGuid()`).
+            // Les entités Identity (ApplicationUser/ApplicationRole) gardent leur génération par défaut : leur
+            // `Id` reste `Guid.Empty` à la construction, donc ValueGeneratedNever provoquerait une collision
+            // sur `Guid.Empty` au seed (RoleManager/UserManager.CreateAsync de deux entités d'un coup).
+            if (!typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                continue;
+            }
+
             var key = entityType.FindPrimaryKey();
             if (key is { Properties.Count: 1 } && key.Properties[0] is { Name: "Id", ClrType.IsValueType: true } property
                 && property.ClrType == typeof(Guid))
