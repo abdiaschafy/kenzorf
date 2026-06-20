@@ -20,7 +20,6 @@ RUN dotnet publish src/KENZORF.Api/KENZORF.Api.csproj -c Release -o /app/publish
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 
-ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
 
 COPY --from=build /app/publish ./
@@ -28,5 +27,6 @@ COPY --from=build /app/publish ./
 # Dossier des uploads (images produits) servi via UseStaticFiles.
 RUN mkdir -p /app/wwwroot/uploads
 
+# Écoute sur le port fourni par l'hôte ($PORT — ex. Render) sinon 8080 (docker-compose local).
 EXPOSE 8080
-ENTRYPOINT ["dotnet", "KENZORF.Api.dll"]
+ENTRYPOINT ["sh", "-c", "exec dotnet KENZORF.Api.dll --urls http://+:${PORT:-8080}"]

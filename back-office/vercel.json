@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/back-office/browser",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://kenzorf-api.onrender.com/api/:path*" },
+    {
+      "source": "/uploads/:path*",
+      "destination": "https://kenzorf-api.onrender.com/uploads/:path*"
+    },
+    { "source": "/:path*", "destination": "/index.html" }
+  ]
+}

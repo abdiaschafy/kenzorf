@@ -17,6 +17,8 @@ DEVICE       ?=
 # URL de l'API vue par le téléphone. iPhone PHYSIQUE = IP LAN du Mac (pas localhost) :
 #   make build-ios API_BASE_URL=http://192.168.1.57:8080/api
 API_BASE_URL ?= http://localhost:8080/api
+# URL de l'API en PRODUCTION (Render) — utilisée par les builds mobiles de prod.
+PROD_API_URL ?= https://kenzorf-api.onrender.com/api
 RUNNER_APP   := $(FLUTTER_DIR)/build/ios/iphoneos/Runner.app
 
 # Contourne un ~/.pub-cache cassé (symlink vers un volume externe non monté) :
@@ -59,7 +61,7 @@ front-build:  ## Build prod du back-office
 	$(NODE22) cd $(FRONT_DIR) && npm run build
 
 # --- Marketplace Flutter (iOS sur iPhone physique) ----------------
-.PHONY: ip devices build-ios install-ios deploy-ios run-ios
+.PHONY: ip devices build-ios install-ios deploy-ios run-ios build-apk-prod build-ios-prod deploy-ios-prod
 ip:  ## Affiche l'IP LAN du Mac (à mettre dans API_BASE_URL pour l'iPhone)
 	@ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "IP LAN introuvable (vérifie le Wi-Fi)"
 
@@ -77,6 +79,17 @@ deploy-ios: build-ios install-ios  ## Build + installe sur l'iPhone (DEVICE=UDID
 
 run-ios:  ## Build + run + hot reload sur l'iPhone (DEVICE=UDID)
 	cd $(FLUTTER_DIR) && $(FLUTTER_ENV) flutter run --release -d $(DEVICE) --dart-define=API_BASE_URL=$(API_BASE_URL)
+
+build-apk-prod:  ## Build APK Android release vers l'API de PROD (PROD_API_URL = Render)
+	cd $(FLUTTER_DIR) && $(FLUTTER_ENV) flutter build apk --release --dart-define=API_BASE_URL=$(PROD_API_URL)
+
+build-ios-prod:  ## Build iOS release vers l'API de PROD (PROD_API_URL = Render)
+	cd $(FLUTTER_DIR) && $(FLUTTER_ENV) flutter build ios --release --dart-define=API_BASE_URL=$(PROD_API_URL)
+
+deploy-ios-prod:  ## Build (API prod) + installe sur l'iPhone (DEVICE=UDID)
+	cd $(FLUTTER_DIR) && $(FLUTTER_ENV) flutter build ios --release --dart-define=API_BASE_URL=$(PROD_API_URL)
+	@test -n "$(DEVICE)" || { echo "❌ DEVICE manquant : make deploy-ios-prod DEVICE=<UDID>"; exit 1; }
+	xcrun devicectl device install app --device $(DEVICE) $(RUNNER_APP)
 
 # --- Docker -------------------------------------------------------
 .PHONY: up down logs

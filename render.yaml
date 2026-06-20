@@ -1,0 +1,47 @@
+# ─────────────────────────────────────────────────────────────
+#  render.yaml — Blueprint Render : API .NET KENZORF (Docker) + PostgreSQL
+#  Déploiement : Render Dashboard → New → Blueprint → connecter le repo GitHub → Apply.
+#  L'API migre + seed la base au 1er démarrage (Seed__Demo=true → semaine de démo).
+# ─────────────────────────────────────────────────────────────
+databases:
+  - name: kenzorf-db
+    databaseName: kenzorf
+    user: kenzorf
+    plan: free
+    region: frankfurt
+
+services:
+  - type: web
+    name: kenzorf-api
+    runtime: docker
+    region: frankfurt
+    plan: free
+    rootDir: api
+    dockerfilePath: Dockerfile
+    healthCheckPath: /api/categories
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      # Postgres Render (URL postgres://) → convertie en chaîne Npgsql par l'API.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kenzorf-db
+          property: connectionString
+      - key: Jwt__Issuer
+        value: kenzorf
+      - key: Jwt__Audience
+        value: kenzorf
+      # Secret fort généré par Render (jamais commité) — satisfait le fail-closed JWT.
+      - key: Jwt__Key
+        generateValue: true
+      - key: Jwt__AccessMinutes
+        value: "15"
+      - key: Jwt__RefreshDays
+        value: "14"
+      # Données de démonstration au 1er boot (passer à "false" ensuite).
+      - key: Seed__Demo
+        value: "true"
+      # Origine autorisée pour le back-office (mettre l'URL Vercel réelle après déploiement).
+      - key: Cors__AllowedOrigins__0
+        value: https://kenzorf.vercel.app

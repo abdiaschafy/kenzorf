@@ -18,8 +18,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services,
         IConfiguration configuration, IHostEnvironment environment)
     {
-        var connectionString = configuration.GetConnectionString("Default")
-            ?? "Host=localhost;Port=5432;Database=kenzorf;Username=kenzorf;Password=kenzorf";
+        var connectionString = ResolveConnectionString(configuration);
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
@@ -91,5 +90,39 @@ public static class DependencyInjection
                 client.Timeout = TimeSpan.FromSeconds(30);
             });
         }
+    }
+
+    /// <summary>
+    /// Construit la chaîne de connexion Npgsql. Priorité à <c>DATABASE_URL</c> (format <c>postgres://</c>
+    /// fourni par Render/Heroku, converti ici), sinon <c>ConnectionStrings:Default</c>, sinon défaut local.
+    /// </summary>
+    private static string ResolveConnectionString(IConfiguration configuration)
+    {
+        var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+        if (!string.IsNullOrWhiteSpace(databaseUrl) &&
+            databaseUrl.StartsWith("postgres", StringComparison.OrdinalIgnoreCase))
+        {
+            return ConvertDatabaseUrl(databaseUrl);
+        }
+
+        return configuration.GetConnectionString("Default")
+            ?? "Host=localhost;Port=5432;Database=kenzorf;Username=kenzorf;Password=kenzorf";
+    }
+
+    /// <summary>Convertit une URL <c>postgres://user:pass@host:port/db</c> en chaîne de connexion Npgsql (SSL requis).</summary>
+    private static string ConvertDatabaseUrl(string databaseUrl)
+    {
+        var uri = new Uri(databaseUrl);
+        var credentials = uri.UserInfo.Split(':', 2);
+        return new Npgsql.NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = uri.Port > 0 ? uri.Port : 5432,
+            Username = Uri.UnescapeDataString(credentials[0]),
+            Password = credentials.Length > 1 ? Uri.UnescapeDataString(credentials[1]) : string.Empty,
+            Database = uri.AbsolutePath.TrimStart('/'),
+            SslMode = Npgsql.SslMode.Require,
+            TrustServerCertificate = true,
+        }.ConnectionString;
     }
 }
