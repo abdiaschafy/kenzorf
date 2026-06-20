@@ -30,14 +30,31 @@ public static class DbSeeder
         var userManager = provider.GetRequiredService<UserManager<ApplicationUser>>();
         var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("DbSeeder");
 
-        await SeedRolesAsync(roleManager);
+        await SeedRolesAsync(roleManager, db);
         await SeedAdminAsync(db, userManager);
         await SeedDemoCustomerAsync(db, userManager);
         await SeedCatalogAsync(db, logger, cancellationToken);
     }
 
-    private static async Task SeedRolesAsync(RoleManager<ApplicationRole> roleManager)
+    private static async Task SeedRolesAsync(RoleManager<ApplicationRole> roleManager, AppDbContext db)
     {
+        // Auto-réparation : une tentative de déploiement antérieure (ancien comportement ValueGeneratedNever
+        // sur Identity) a pu insérer un rôle corrompu (Id = Guid.Empty) avant de planter. On purge ce rôle
+        // et ses éventuelles assignations pour repartir d'une base saine, avant de (re)créer les rôles.
+        var brokenLinks = await db.UserRoles.Where(ur => ur.RoleId == Guid.Empty).ToListAsync();
+        if (brokenLinks.Count > 0)
+        {
+            db.UserRoles.RemoveRange(brokenLinks);
+            await db.SaveChangesAsync();
+        }
+
+        var brokenRoles = await db.Roles.Where(r => r.Id == Guid.Empty).ToListAsync();
+        if (brokenRoles.Count > 0)
+        {
+            db.Roles.RemoveRange(brokenRoles);
+            await db.SaveChangesAsync();
+        }
+
         foreach (var role in AppRoles.All)
         {
             if (!await roleManager.RoleExistsAsync(role))
@@ -49,49 +66,63 @@ public static class DbSeeder
 
     private static async Task SeedAdminAsync(AppDbContext db, UserManager<ApplicationUser> userManager)
     {
-        if (await userManager.FindByEmailAsync(AdminEmail) is not null)
+        var user = await userManager.FindByEmailAsync(AdminEmail);
+        if (user is null)
         {
-            return;
+            var customer = await EnsureCustomerProfileAsync(db, AdminEmail, "Admin", "KENZORF", "+2250700000000");
+            user = new ApplicationUser
+            {
+                UserName = AdminEmail,
+                Email = AdminEmail,
+                EmailConfirmed = true,
+                CustomerId = customer.Id,
+            };
+
+            var result = await userManager.CreateAsync(user, DefaultPassword);
+            if (!result.Succeeded)
+            {
+                return;
+            }
         }
 
-        var customer = await EnsureCustomerProfileAsync(db, AdminEmail, "Admin", "KENZORF", "+2250700000000");
-
-        var user = new ApplicationUser
-        {
-            UserName = AdminEmail,
-            Email = AdminEmail,
-            EmailConfirmed = true,
-            CustomerId = customer.Id,
-        };
-
-        var result = await userManager.CreateAsync(user, DefaultPassword);
-        if (result.Succeeded)
-        {
-            await userManager.AddToRolesAsync(user, new[] { AppRoles.Admin, AppRoles.Customer });
-        }
+        // Assignation idempotente (répare aussi un compte créé sans rôle lors d'un seed partiel).
+        await EnsureRolesAsync(userManager, user, AppRoles.Admin, AppRoles.Customer);
     }
 
     private static async Task SeedDemoCustomerAsync(AppDbContext db, UserManager<ApplicationUser> userManager)
     {
-        if (await userManager.FindByEmailAsync(CustomerEmail) is not null)
+        var user = await userManager.FindByEmailAsync(CustomerEmail);
+        if (user is null)
         {
-            return;
+            var customer = await EnsureCustomerProfileAsync(db, CustomerEmail, "Awa", "Koné", "+2250500000000");
+            user = new ApplicationUser
+            {
+                UserName = CustomerEmail,
+                Email = CustomerEmail,
+                EmailConfirmed = true,
+                CustomerId = customer.Id,
+            };
+
+            var result = await userManager.CreateAsync(user, DefaultPassword);
+            if (!result.Succeeded)
+            {
+                return;
+            }
         }
 
-        var customer = await EnsureCustomerProfileAsync(db, CustomerEmail, "Awa", "Koné", "+2250500000000");
+        await EnsureRolesAsync(userManager, user, AppRoles.Customer);
+    }
 
-        var user = new ApplicationUser
+    /// <summary>Assigne à un utilisateur les rôles qui lui manquent (idempotent).</summary>
+    private static async Task EnsureRolesAsync(UserManager<ApplicationUser> userManager,
+        ApplicationUser user, params string[] roles)
+    {
+        foreach (var role in roles)
         {
-            UserName = CustomerEmail,
-            Email = CustomerEmail,
-            EmailConfirmed = true,
-            CustomerId = customer.Id,
-        };
-
-        var result = await userManager.CreateAsync(user, DefaultPassword);
-        if (result.Succeeded)
-        {
-            await userManager.AddToRoleAsync(user, AppRoles.Customer);
+            if (!await userManager.IsInRoleAsync(user, role))
+            {
+                await userManager.AddToRoleAsync(user, role);
+            }
         }
     }
 
