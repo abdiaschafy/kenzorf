@@ -23,9 +23,10 @@ public sealed class AdminCustomersController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(PagedResult<CustomerDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResult<CustomerDto>>> GetAll(
+        [FromQuery] string? search = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
-        => Ok(await _orders.GetCustomersAsync(new PaginationQuery { Page = page, PageSize = pageSize },
+        => Ok(await _orders.GetCustomersAsync(new PaginationQuery { Page = page, PageSize = pageSize }, search,
             cancellationToken));
 }

@@ -94,12 +94,24 @@ public sealed class AdminOrderService : IAdminOrderService
         return AdminMapper.ToDto(reloaded);
     }
 
-    public async Task<PagedResult<CustomerDto>> GetCustomersAsync(PaginationQuery pagination,
+    public async Task<PagedResult<CustomerDto>> GetCustomersAsync(PaginationQuery pagination, string? search = null,
         CancellationToken cancellationToken = default)
     {
         var customers = _db.Customers
             .AsNoTracking()
-            .OrderByDescending(c => c.CreatedAt);
+            .AsQueryable();
+
+        // Recherche insensible à la casse sur prénom + nom + email (LOWER(...) LIKE côté Postgres).
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            customers = customers.Where(c =>
+                c.FirstName.ToLower().Contains(term) ||
+                c.LastName.ToLower().Contains(term) ||
+                c.Email.ToLower().Contains(term));
+        }
+
+        customers = customers.OrderByDescending(c => c.CreatedAt);
 
         var total = await customers.CountAsync(cancellationToken);
 

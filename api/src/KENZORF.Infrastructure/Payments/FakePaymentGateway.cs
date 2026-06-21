@@ -1,23 +1,28 @@
+using System.Globalization;
 using System.Text.Json;
 using KENZORF.Application.Contracts;
 using KENZORF.Application.DTOs.Payments;
 using KENZORF.Domain.Entities;
 using KENZORF.Domain.Enums;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
 namespace KENZORF.Infrastructure.Payments;
 
 /// <summary>
-/// Passerelle de paiement factice (Development uniquement). Renvoie un <c>checkoutUrl</c> pointant vers
-/// une page locale qui permet de simuler le webhook (succès/échec). Ne JAMAIS l'activer en production.
+/// Passerelle de paiement factice (Development uniquement). Renvoie un <c>checkoutUrl</c> ABSOLU pointant
+/// vers une page locale qui permet de simuler le webhook (succès/échec). L'URL doit être absolue pour être
+/// ouvrable dans la WebView mobile. Ne JAMAIS l'activer en production.
 /// </summary>
 public sealed class FakePaymentGateway : IPaymentGateway
 {
     private readonly KPayOptions _options;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public FakePaymentGateway(IOptions<KPayOptions> options)
+    public FakePaymentGateway(IOptions<KPayOptions> options, IHttpContextAccessor httpContextAccessor)
     {
         _options = options.Value;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public string Provider => "Fake";
@@ -27,13 +32,38 @@ public sealed class FakePaymentGateway : IPaymentGateway
     {
         var transactionId = $"FAKE-{Guid.NewGuid():N}"[..18].ToUpperInvariant();
 
-        // Page de simulation locale servie par l'API (wwwroot/dev/checkout.html).
+        // Page de simulation locale servie par l'API (wwwroot/dev/checkout.html), en URL ABSOLUE
+        // (schéma + hôte de la requête courante) afin d'être ouvrable depuis la WebView mobile.
+        // Montant : entier invariant (FCFA, sans décimales) — jamais de virgule de culture (« 76000,00 »).
+        var amount = ((long)payment.Amount).ToString(CultureInfo.InvariantCulture);
         var checkoutUrl =
-            $"/dev/checkout.html?reference={Uri.EscapeDataString(payment.Reference)}" +
-            $"&amount={payment.Amount}&order={Uri.EscapeDataString(order.OrderNumber)}";
+            $"{ResolveBaseUrl()}/dev/checkout.html?reference={Uri.EscapeDataString(payment.Reference)}" +
+            $"&amount={amount}&order={Uri.EscapeDataString(order.OrderNumber)}";
 
         var result = new PaymentInitiationResult(transactionId, checkoutUrl, PaymentStatus.Initiated);
         return Task.FromResult(result);
+    }
+
+    /// <summary>
+    /// Base absolue (<c>scheme://host[:port]</c>) de la page de checkout factice : schéma + hôte de la
+    /// requête HTTP courante. Repli sur <see cref="KPayOptions.ReturnUrl"/> puis sur l'hôte de boucle locale
+    /// si aucune requête n'est disponible (cas hors pipeline HTTP, défensif).
+    /// </summary>
+    private string ResolveBaseUrl()
+    {
+        var request = _httpContextAccessor.HttpContext?.Request;
+        if (request is not null && request.Host.HasValue)
+        {
+            return $"{request.Scheme}://{request.Host.Value}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(_options.ReturnUrl)
+            && Uri.TryCreate(_options.ReturnUrl, UriKind.Absolute, out var configured))
+        {
+            return $"{configured.Scheme}://{configured.Authority}";
+        }
+
+        return "http://localhost:8080";
     }
 
     public Task<PaymentWebhookResult?> HandleWebhookAsync(PaymentWebhookRequest request,

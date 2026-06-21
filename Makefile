@@ -25,6 +25,8 @@ RUNNER_APP   := $(FLUTTER_DIR)/build/ios/iphoneos/Runner.app
 # si ~/.pub-cache est absent/lien mort, on bascule sur un cache local au repo.
 PUB_CACHE_LOCAL := $(CURDIR)/.pub-cache-local
 FLUTTER_ENV     := $(shell [ -e "$$HOME/.pub-cache" ] || echo PUB_CACHE=$(PUB_CACHE_LOCAL))
+# Contourne un ~/.gradle cassé (symlink vers un volume non monté) : cache Gradle local pour le build APK.
+GRADLE_ENV      := $(shell [ -e "$$HOME/.gradle" ] || echo GRADLE_USER_HOME=$$HOME/android-gradle)
 
 # Ports que KENZORF doit occuper sur cette machine (libérés au lancement)
 KENZORF_PORTS   ?= 8080 4200 5432
@@ -81,7 +83,7 @@ run-ios:  ## Build + run + hot reload sur l'iPhone (DEVICE=UDID)
 	cd $(FLUTTER_DIR) && $(FLUTTER_ENV) flutter run --release -d $(DEVICE) --dart-define=API_BASE_URL=$(API_BASE_URL)
 
 build-apk-prod:  ## Build APK Android release vers l'API de PROD (PROD_API_URL = Render)
-	cd $(FLUTTER_DIR) && $(FLUTTER_ENV) flutter build apk --release --dart-define=API_BASE_URL=$(PROD_API_URL)
+	cd $(FLUTTER_DIR) && $(FLUTTER_ENV) $(GRADLE_ENV) flutter build apk --release --dart-define=API_BASE_URL=$(PROD_API_URL)
 
 build-ios-prod:  ## Build iOS release vers l'API de PROD (PROD_API_URL = Render)
 	cd $(FLUTTER_DIR) && $(FLUTTER_ENV) flutter build ios --release --dart-define=API_BASE_URL=$(PROD_API_URL)

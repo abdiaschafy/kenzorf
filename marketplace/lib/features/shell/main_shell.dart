@@ -29,8 +29,16 @@ class MainShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    // Lectures dérivées via `select` : la coquille ne se reconstruit que lorsque
+    // le compteur (int) ou le booléen d'auth changent réellement. Cela évite le
+    // « setState()/markNeedsBuild() called during build » qui survenait quand un
+    // changement d'état panier/auth (login, ajout) était propagé pendant la
+    // phase de build de `MainShell` — le rebuild est désormais planifié après la
+    // frame courante au lieu de ré-entrer dans le build en cours.
     final cartCount = ref.watch(cartCountProvider);
-    final isAuth = ref.watch(authControllerProvider).isAuthenticated;
+    final isAuth = ref.watch(
+      authControllerProvider.select((s) => s.isAuthenticated),
+    );
 
     final items = <_NavItem>[
       _NavItem(Icons.home_outlined, Icons.home, l10n.t('nav.home')),

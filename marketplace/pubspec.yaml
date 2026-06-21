@@ -48,6 +48,9 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # Tests d'intégration natifs (parcours bout-en-bout sur simulateur/appareil).
+  integration_test:
+    sdk: flutter
   flutter_launcher_icons: ^0.14.4
   # 2.4.8+ exige meta 1.18 (incompatible avec le SDK Flutter actuel → meta 1.17).
   flutter_native_splash: ">=2.4.4 <2.4.8"

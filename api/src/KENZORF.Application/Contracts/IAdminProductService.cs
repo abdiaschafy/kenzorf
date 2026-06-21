@@ -6,7 +6,7 @@ namespace KENZORF.Application.Contracts;
 /// <summary>Gestion des produits, variantes, images et catégories côté back-office.</summary>
 public interface IAdminProductService
 {
-    Task<PagedResult<AdminProductSummaryDto>> GetProductsAsync(PaginationQuery pagination,
+    Task<PagedResult<AdminProductSummaryDto>> GetProductsAsync(PaginationQuery pagination, string? search = null,
         CancellationToken cancellationToken = default);
 
     Task<AdminProductDto> GetProductAsync(Guid id, CancellationToken cancellationToken = default);

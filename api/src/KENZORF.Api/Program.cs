@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using KENZORF.Api.Auth;
 using KENZORF.Api.Configuration;
+using KENZORF.Api.Errors;
 using KENZORF.Api.Middleware;
 using KENZORF.Application;
 using KENZORF.Application.Common;
@@ -11,6 +12,7 @@ using KENZORF.Infrastructure.Auth;
 using KENZORF.Infrastructure.Persistence;
 using KENZORF.Infrastructure.Seed;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -35,6 +37,14 @@ builder.Services
         options.JsonSerializerOptions.DictionaryKeyPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
+
+// Validation automatique du model binding ([ApiController]) : remplace le ProblemDetails par défaut
+// (qui fuite un traceId) par l'enveloppe d'erreur du contrat KENZORF — identique à celle du middleware
+// d'exception pour une ValidationException : statut 422, code/messageKey stables, erreurs par champ.
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = ValidationProblemResponse.Create;
+});
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();

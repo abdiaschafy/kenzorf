@@ -108,9 +108,19 @@ final cartControllerProvider = AsyncNotifierProvider<CartController, Cart>(
 );
 
 /// Nombre total d'articles dans le panier (pour le badge de navigation).
+///
+/// Dérivé via `select` pour ne notifier ses dépendants (ex. `MainShell`) que
+/// lorsque la **valeur entière** change réellement, et non à chaque transition
+/// d'état (`loading`/`data`) du panier. Combiné à une lecture `select` côté
+/// widget, cela évite le « setState() called during build » : un changement
+/// d'auth/panier survenant pendant une phase de build ne ré-entre plus dans le
+/// build de `MainShell` — le rebuild est planifié normalement.
 final cartCountProvider = Provider<int>((ref) {
-  final cart = ref.watch(cartControllerProvider);
-  return cart.maybeWhen(data: (c) => c.totalQuantity, orElse: () => 0);
+  return ref.watch(
+    cartControllerProvider.select(
+      (cart) => cart.maybeWhen(data: (c) => c.totalQuantity, orElse: () => 0),
+    ),
+  );
 });
 
 /// Indique qu'une mutation du panier est en cours (ajout / mise à jour /

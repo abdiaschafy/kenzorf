@@ -30,14 +30,23 @@ public sealed class AdminProductService : IAdminProductService
     }
 
     public async Task<PagedResult<AdminProductSummaryDto>> GetProductsAsync(PaginationQuery pagination,
-        CancellationToken cancellationToken = default)
+        string? search = null, CancellationToken cancellationToken = default)
     {
         var query = _db.Products
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Variants)
             .Include(p => p.Images)
-            .OrderByDescending(p => p.CreatedAt);
+            .AsQueryable();
+
+        // Recherche insensible à la casse sur le nom (même logique que le catalogue public).
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            query = query.Where(p => p.Name.ToLower().Contains(term));
+        }
+
+        query = query.OrderByDescending(p => p.CreatedAt);
 
         var total = await query.CountAsync(cancellationToken);
         var page = await query

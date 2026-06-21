@@ -26,10 +26,11 @@ public sealed class AdminProductsController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(PagedResult<AdminProductSummaryDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResult<AdminProductSummaryDto>>> GetAll(
+        [FromQuery] string? search = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
-        => Ok(await _products.GetProductsAsync(new PaginationQuery { Page = page, PageSize = pageSize },
+        => Ok(await _products.GetProductsAsync(new PaginationQuery { Page = page, PageSize = pageSize }, search,
             cancellationToken));
 
     [HttpGet("{id:guid}")]

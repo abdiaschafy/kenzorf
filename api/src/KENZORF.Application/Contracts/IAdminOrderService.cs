@@ -14,6 +14,6 @@ public interface IAdminOrderService
     Task<AdminOrderDto> UpdateStatusAsync(Guid id, UpdateOrderStatusRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<PagedResult<CustomerDto>> GetCustomersAsync(PaginationQuery pagination,
+    Task<PagedResult<CustomerDto>> GetCustomersAsync(PaginationQuery pagination, string? search = null,
         CancellationToken cancellationToken = default);
 }

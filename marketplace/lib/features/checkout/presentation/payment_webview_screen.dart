@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/models/order.dart';
 import '../../../core/router/routes.dart';
@@ -29,13 +30,23 @@ class _PaymentWebViewScreenState extends ConsumerState<PaymentWebViewScreen> {
   bool _pageLoading = true;
 
   String? get _reference => widget.order.payment?.reference;
-  String? get _checkoutUrl => widget.order.payment?.checkoutUrl;
+
+  /// `checkoutUrl` rendu **absolu** : l'API renvoie désormais une URL absolue,
+  /// mais on reste défensif — une URL relative (ex. `/dev/checkout.html?...`
+  /// émise par la passerelle factice) est résolue contre l'origine de l'API
+  /// avant chargement, au lieu de planter (`Missing scheme in uri`).
+  late final String? _checkoutUrl = AppConfig.resolveCheckoutUrl(
+    widget.order.payment?.checkoutUrl,
+  );
 
   @override
   void initState() {
     super.initState();
     final url = _checkoutUrl;
-    if (url != null && url.isNotEmpty) {
+    // `resolveCheckoutUrl` garantit une URL absolue valide (avec schéma) ou
+    // `null` ; on parse donc sans risque d'`ArgumentError`.
+    final uri = url == null ? null : Uri.tryParse(url);
+    if (uri != null && uri.hasScheme) {
       _webController = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setNavigationDelegate(
@@ -48,7 +59,7 @@ class _PaymentWebViewScreenState extends ConsumerState<PaymentWebViewScreen> {
             },
           ),
         )
-        ..loadRequest(Uri.parse(url));
+        ..loadRequest(uri);
     }
   }
 
@@ -86,8 +97,9 @@ class _PaymentWebViewScreenState extends ConsumerState<PaymentWebViewScreen> {
     final l10n = context.l10n;
     final reference = _reference;
 
-    // Cas dégradé : pas de référence/URL de paiement renvoyée par l'API.
-    if (reference == null || _checkoutUrl == null || _checkoutUrl!.isEmpty) {
+    // Cas dégradé : pas de référence, ou `checkoutUrl` absent / non résoluble
+    // en URL absolue (`resolveCheckoutUrl` renvoie alors `null`).
+    if (reference == null || _checkoutUrl == null) {
       return Scaffold(
         appBar: AppBar(title: Text(l10n.t('checkout.title'))),
         body: ErrorView(

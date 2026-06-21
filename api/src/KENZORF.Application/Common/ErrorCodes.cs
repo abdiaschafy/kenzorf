@@ -4,6 +4,7 @@ namespace KENZORF.Application.Common;
 public static class ErrorCodes
 {
     public const string ValidationFailed = "common.validationFailed";
+    public const string ValidationRequired = "validation.required";
     public const string InternalError = "common.internalError";
     public const string Unauthorized = "auth.unauthorized";
     public const string Forbidden = "common.forbidden";

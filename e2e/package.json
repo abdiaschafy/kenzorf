@@ -1,0 +1,21 @@
+{
+  "name": "kenzorf-e2e",
+  "version": "1.0.0",
+  "description": "Suite E2E Playwright KENZORF — back-office (UI) + API (request context), stack locale isolée.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:api": "playwright test --project=api",
+    "test:ui": "playwright test --project=ui",
+    "test:headed": "playwright test --project=ui --headed",
+    "report": "playwright show-report"
+  },
+  "keywords": ["e2e", "playwright", "kenzorf"],
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "@types/node": "^26.0.0",
+    "typescript": "^6.0.3"
+  }
+}

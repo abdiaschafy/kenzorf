@@ -7,6 +7,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kenzorf_marketplace/core/api/api_exception.dart';
+import 'package:kenzorf_marketplace/core/config/app_config.dart';
 import 'package:kenzorf_marketplace/core/l10n/app_strings.dart';
 import 'package:kenzorf_marketplace/core/models/cart.dart';
 import 'package:kenzorf_marketplace/core/models/enums.dart';
@@ -27,6 +28,49 @@ DioException _dioError({required int status, required Object data}) {
 }
 
 void main() {
+  // P1 — robustesse WebView paiement : `checkoutUrl` résolu en URL absolue.
+  // En test, `AppConfig.apiBaseUrl` vaut la valeur par défaut compile-time
+  // (`http://10.0.2.2:8080/api`) -> origine attendue `http://10.0.2.2:8080`.
+  group('AppConfig.resolveCheckoutUrl (P1)', () {
+    test('origine = schéma + hôte + port, sans /api ni délimiteurs parasites',
+        () {
+      expect(AppConfig.apiOrigin, 'http://10.0.2.2:8080');
+    });
+
+    test('URL relative enracinée -> résolue contre l’origine (hors /api)', () {
+      expect(
+        AppConfig.resolveCheckoutUrl('/dev/checkout.html?reference=abc'),
+        'http://10.0.2.2:8080/dev/checkout.html?reference=abc',
+      );
+    });
+
+    test('URL absolue -> renvoyée telle quelle', () {
+      expect(
+        AppConfig.resolveCheckoutUrl('https://kpay.site/pay/xyz'),
+        'https://kpay.site/pay/xyz',
+      );
+    });
+
+    test('URL relative sans slash initial -> résolue contre l’origine', () {
+      expect(
+        AppConfig.resolveCheckoutUrl('dev/checkout.html'),
+        'http://10.0.2.2:8080/dev/checkout.html',
+      );
+    });
+
+    test('null / vide / espaces -> null (cas dégradé géré par l’écran)', () {
+      expect(AppConfig.resolveCheckoutUrl(null), isNull);
+      expect(AppConfig.resolveCheckoutUrl(''), isNull);
+      expect(AppConfig.resolveCheckoutUrl('   '), isNull);
+    });
+
+    test('la valeur résolue est toujours absolue (schéma présent)', () {
+      final resolved = AppConfig.resolveCheckoutUrl('/dev/checkout.html');
+      expect(resolved, isNotNull);
+      expect(Uri.parse(resolved!).hasScheme, isTrue);
+    });
+  });
+
   group('PriceFormatter (FCFA, montants entiers)', () {
     test('formate avec séparateur de milliers et suffixe FCFA', () {
       expect(PriceFormatter.format(12000), '12 000 FCFA');
